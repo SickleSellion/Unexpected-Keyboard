@@ -74,6 +74,7 @@ public final class DirectBootAwarePreferences
   {
     SharedPreferences.Editor e = dst.edit();
     Map<String, ?> entries = src.getAll();
+    Logs.debug("DirectBootAwarePreferences.copy_shared_preferences keys=" + entries.size());
     for (String k : entries.keySet())
     {
       Object v = entries.get(k);

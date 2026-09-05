@@ -13,6 +13,9 @@ public class SettingsActivity extends PreferenceActivity
   public void onCreate(Bundle savedInstanceState)
   {
     super.onCreate(savedInstanceState);
+    // Diagnostics: the keyboard service normally enables this, but the
+    // activity might run before the service in this process.
+    Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     // The preferences can't be read when in direct-boot mode. Avoid crashing
     // and don't allow changing the settings.
     // Run the config migration on this prefs as it might be different from the
@@ -41,6 +44,7 @@ public class SettingsActivity extends PreferenceActivity
 
   protected void onStop()
   {
+    Logs.debug("SettingsActivity.onStop: copying preferences to protected storage");
     DirectBootAwarePreferences
       .copy_preferences_to_protected_storage(this,
           getPreferenceManager().getSharedPreferences());

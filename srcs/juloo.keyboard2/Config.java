@@ -32,7 +32,16 @@ public final class Config
   public final float keyPadding;
 
   public final float labelTextSize;
-  public final float sublabelTextSize;
+  /** Size of the symbols in the corners of the keys, as a ratio of the key
+      size. From the 'corner_label_size' option. */
+  public float sublabelTextSize;
+  /** Color of the symbols in the corners of the keys. [0] means the color
+      defined by the theme. From the 'corner_label_color' option. */
+  public int corner_label_color;
+  /** How far the symbols in the corners are moved towards the center of the
+      key, as a ratio of the half key size. [0] keeps them in the corners.
+      From the 'corner_label_inset' option. */
+  public float corner_label_inset;
 
   // From preferences
   /** [null] represent the [system] layout. */
@@ -188,6 +197,9 @@ public final class Config
     characterSize =
       _prefs.getFloat("character_size", 1.15f)
       * characterSizeScale;
+    sublabelTextSize = _prefs.getFloat("corner_label_size", 0.22f);
+    corner_label_color = parse_color_pref(_prefs.getString("corner_label_color", ""));
+    corner_label_inset = _prefs.getInt("corner_label_inset", 0) / 100.f;
     theme = getThemeId(res, _prefs.getString("theme", ""));
     autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
     change_method_key_replacement = get_change_method_key_replacement(_prefs);
@@ -204,6 +216,7 @@ public final class Config
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
     split_layout = get_split_layout();
+    Logs.debug_config_refresh(this, dm, res.getConfiguration(), keyboardHeightPercent);
   }
 
   public int get_current_layout()
@@ -289,6 +302,15 @@ public final class Config
     }
   }
 
+  /** Parse a "#RRGGBB" color. Returns [0] for an empty or invalid value. */
+  private static int parse_color_pref(String s)
+  {
+    if (s == null || s.equals(""))
+      return 0;
+    try { return android.graphics.Color.parseColor(s); }
+    catch (Exception _e) { return 0; }
+  }
+
   private static KeyValue get_change_method_key_replacement(SharedPreferences prefs)
   {
     switch (prefs.getString("change_method_key_replacement", "prev"))
@@ -366,6 +388,9 @@ public final class Config
         if (custom_layout != null && !custom_layout.equals(""))
           l.add(LayoutsPreference.CustomLayout.parse(custom_layout));
         LayoutsPreference.save_to_preferences(e, l);
+        // Fork: seed the preferences of a fresh install.
+        if (ForkDefaults.should_apply(prefs))
+          ForkDefaults.apply(e);
         // Fallthrough
       case 1:
         boolean add_number_row = prefs.getBoolean("number_row", false);

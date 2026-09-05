@@ -15,6 +15,7 @@ Parse a key definition. The syntax for a key definition is:
 - ['Arbitrary string']
 - [(key_action),(key_action),...]
 - [keyevent:(code)]
+- [app:(package name)]
 - [(key_name)]
 
 For the different kinds and attributes, see doc/Possible-key-values.md.
@@ -29,6 +30,7 @@ public final class KeyValueParser
   static Pattern KEYDEF_TOKEN;
   static Pattern QUOTED_PAT;
   static Pattern WORD_PAT;
+  static Pattern PACKAGE_PAT;
 
   static public KeyValue parse(String input) throws ParseError
   {
@@ -59,9 +61,10 @@ public final class KeyValueParser
   {
     if (KEYDEF_TOKEN != null)
       return;
-    KEYDEF_TOKEN = Pattern.compile("'|,|keyevent:|(?:[^\\\\',]+|\\\\.)+");
+    KEYDEF_TOKEN = Pattern.compile("'|,|keyevent:|app:|(?:[^\\\\',]+|\\\\.)+");
     QUOTED_PAT = Pattern.compile("((?:[^'\\\\]+|\\\\.)*)'");
     WORD_PAT = Pattern.compile("[a-zA-Z0-9_]+|.");
+    PACKAGE_PAT = Pattern.compile("[a-zA-Z0-9_.]+");
   }
 
   static KeyValue key_by_name_or_str(String str)
@@ -82,8 +85,17 @@ public final class KeyValueParser
       case "'": return parse_string_keydef(m);
       case ",": parseError("Unexpected comma", m); return null;
       case "keyevent:": return parse_keyevent_keydef(m);
+      case "app:": return parse_app_keydef(m);
       default: return key_by_name_or_str(remove_escaping(token));
     }
+  }
+
+  /** [app:(package name)]. The legend is set by the caller. */
+  static KeyValue parse_app_keydef(Matcher m) throws ParseError
+  {
+    if (!match(m, PACKAGE_PAT))
+      parseError("Expected an application package name", m);
+    return KeyValue.makeAppKey("", m.group(0), 0);
   }
 
   static KeyValue parse_string_keydef(Matcher m) throws ParseError

@@ -171,4 +171,21 @@
     <string name="pref_split_layout_never">Never</string>
     <string name="pref_split_layout_landscape">In landscape orientation</string>
     <string name="pref_split_layout_wide">On wide screens</string>
+  <string name="pref_corner_label_size_title">Corner symbols size</string>
+  <string name="pref_corner_label_size_summary">Size of the symbols in the corners of the keys (%.2f)</string>
+  <string name="pref_corner_label_color_title">Corner symbols color</string>
+  <string name="pref_corner_label_color_e_default">Theme default</string>
+  <string name="pref_corner_label_color_e_white">White</string>
+  <string name="pref_corner_label_color_e_grey">Grey</string>
+  <string name="pref_corner_label_color_e_black">Black</string>
+  <string name="pref_corner_label_color_e_red">Red</string>
+  <string name="pref_corner_label_color_e_orange">Orange</string>
+  <string name="pref_corner_label_color_e_yellow">Yellow</string>
+  <string name="pref_corner_label_color_e_green">Green</string>
+  <string name="pref_corner_label_color_e_cyan">Cyan</string>
+  <string name="pref_corner_label_color_e_blue">Blue</string>
+  <string name="pref_corner_label_color_e_purple">Purple</string>
+  <string name="pref_corner_label_color_e_pink">Pink</string>
+  <string name="pref_corner_label_inset_title">Corner symbols position</string>
+  <string name="pref_corner_label_inset_summary">Move the corner symbols towards the center of the keys (%s%%)</string>
 </resources>

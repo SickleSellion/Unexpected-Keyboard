@@ -107,6 +107,7 @@ public final class KeyValue implements Comparable<KeyValue>
     Slider, // [_payload] is a [KeyValue.Slider], value is slider repeatition.
     Macro, // [_payload] is a [KeyValue.Macro], value is unused.
     Stateful, // [_payload] is a [KeyValue.Stateful], value is the query.
+    App, // [_payload] is a [KeyValue.App], value is unused.
   }
 
   private static final int FLAGS_OFFSET = 20;
@@ -247,6 +248,12 @@ public final class KeyValue implements Comparable<KeyValue>
     return (Stateful)_payload;
   }
 
+  /** Defined only when [getKind() == Kind.App]. */
+  public App getApp()
+  {
+    return (App)_payload;
+  }
+
   /* Update the char and the symbol. */
   public KeyValue withChar(char c)
   {
@@ -283,6 +290,8 @@ public final class KeyValue implements Comparable<KeyValue>
         return new KeyValue(symbol, _code, _code, flags);
       case Macro:
         return makeMacro(symbol, getMacro(), flags);
+      case App:
+        return makeAppKey(symbol, getApp().package_name, flags);
       default:
         return makeMacro(symbol, new KeyValue[]{ this }, flags);
     }
@@ -509,6 +518,16 @@ public final class KeyValue implements Comparable<KeyValue>
     if (symbol.length() > 1)
       flags |= FLAG_SMALLER_FONT;
     return new KeyValue(new Macro(keys, symbol), Kind.Macro, 0, flags);
+  }
+
+  /** Make a key that opens another application, see [AppLauncher]. [symbol]
+      is the legend shown on the key. */
+  public static KeyValue makeAppKey(String symbol, String package_name, int flags)
+  {
+    if (symbol.length() > 1)
+      flags |= FLAG_SMALLER_FONT;
+    return new KeyValue(new App(package_name, symbol), Kind.App, 0,
+        flags | FLAG_SPECIAL);
   }
 
   /** Make a modifier key for passing to [KeyModifier]. */
@@ -929,6 +948,34 @@ public final class KeyValue implements Comparable<KeyValue>
         d = keys[i].compareTo(snd.keys[i]);
         if (d != 0) return d;
       }
+      return _symbol.compareTo(snd._symbol);
+    }
+  };
+
+  /** An application to open from a key, identified by its package name. See
+      [AppLauncher]. */
+  public static final class App implements Comparable<App>, Describe
+  {
+    public final String package_name;
+    private final String _symbol;
+
+    public App(String package_name_, String sym_)
+    {
+      package_name = package_name_;
+      _symbol = sym_;
+    }
+
+    @Override
+    public String toString() { return _symbol; }
+
+    @Override
+    public String describe() { return package_name; }
+
+    @Override
+    public int compareTo(App snd)
+    {
+      int d = package_name.compareTo(snd.package_name);
+      if (d != 0) return d;
       return _symbol.compareTo(snd._symbol);
     }
   };

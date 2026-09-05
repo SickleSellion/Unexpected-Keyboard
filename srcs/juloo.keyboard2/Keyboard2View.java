@@ -284,6 +284,8 @@ public class Keyboard2View extends View
     int height =
       (int)(_tc.row_height * _keyboard.keysHeight
           + _config.marginTop + _marginBottom);
+    Logs.debug_measure(wSpec, hSpec, width, height, _keyWidth, _tc, _keyboard,
+        _insets_left, _insets_right, _insets_bottom, _config.margin_bottom);
     setMeasuredDimension(width, height);
   }
 
@@ -318,6 +320,8 @@ public class Keyboard2View extends View
       WindowInsets.Type.systemBars()
       | WindowInsets.Type.displayCutout();
     Insets insets = wi.getInsets(insets_types);
+    Logs.debug_insets(_insets_left, _insets_right, _insets_bottom,
+        insets.left, insets.right, insets.bottom);
     _insets_left = insets.left;
     _insets_right = insets.right;
     _insets_bottom = insets.bottom;
@@ -438,6 +442,10 @@ public class Keyboard2View extends View
       }
       return _theme.pressedColor;
     }
+    // Custom color for the symbols in the corners of the keys.
+    if (sublabel && _config.corner_label_color != 0
+        && !k.hasFlagsAny(KeyValue.FLAG_GREYED))
+      return _config.corner_label_color;
     if (k.hasFlagsAny(KeyValue.FLAG_SECONDARY | KeyValue.FLAG_GREYED))
     {
       if (k.hasFlagsAny(KeyValue.FLAG_GREYED))
@@ -469,15 +477,18 @@ public class Keyboard2View extends View
       return;
     float textSize = scaleTextSize(kv, false);
     Paint p = tc.sublabel_paint(kv.hasFlagsAny(KeyValue.FLAG_KEY_FONT), labelColor(kv, isKeyDown, true), textSize, a);
-    float subPadding = _config.keyPadding;
+    // Symbols are moved towards the center of the key by the 'corner_label_inset'
+    // option, proportionally to the key size.
+    float subPaddingX = _config.keyPadding + _config.corner_label_inset * keyW / 2f;
+    float subPaddingY = _config.keyPadding + _config.corner_label_inset * keyH / 2f;
     if (v == Vertical.CENTER)
       y += (keyH - p.ascent() - p.descent()) / 2f;
     else
-      y += (v == Vertical.TOP) ? subPadding - p.ascent() : keyH - subPadding - p.descent();
+      y += (v == Vertical.TOP) ? subPaddingY - p.ascent() : keyH - subPaddingY - p.descent();
     if (a == Paint.Align.CENTER)
       x += keyW / 2f;
     else
-      x += (a == Paint.Align.LEFT) ? subPadding : keyW - subPadding;
+      x += (a == Paint.Align.LEFT) ? subPaddingX : keyW - subPaddingX;
     String label = kv.getString();
     int label_len = label.length();
     // Limit the label of string keys to 3 characters
