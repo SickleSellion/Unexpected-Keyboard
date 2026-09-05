@@ -20,10 +20,12 @@ Key values can be any of the following:
   + The name of a special key, as listed below.
   + `'string'` An arbitrary string that can contain `:`. `'` can be added to the string as `` \' ``.
   + `keyevent:keycode` An Android keycode. They are listed as `KEYCODE_...` in [KeyEvent](https://developer.android.com/reference/android/view/KeyEvent#summary).
+  + `app:package.name` Open another application. On devices that support freeform windows (for example "pop-up view" on Samsung devices), the application opens in a small window above the keyboard, so that the text field stays visible.
 
   Examples:
   + `⏯:keyevent:85` A play/pause key (which has no effect in most apps).
   + `my@:'my.email@domain.com'` A key that sends an arbitrary string
+  + `1P:app:com.onepassword.android` A key that opens 1Password
 
 - A macro, `legend:key_def1,key_def2,...`.
   This results in a key with legend `legend` that behaves as if the sequence of `key_def` had been pressed in order.

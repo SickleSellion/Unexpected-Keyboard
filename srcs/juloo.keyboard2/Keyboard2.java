@@ -534,6 +534,11 @@ public class Keyboard2 extends InputMethodService
       }
     }
 
+    public void launch_app(KeyValue.App app)
+    {
+      AppLauncher.launch(Keyboard2.this, app.package_name);
+    }
+
     public void set_shift_state(boolean state, boolean lock)
     {
       _keyboard_layout_view.set_shift_state(state, lock);

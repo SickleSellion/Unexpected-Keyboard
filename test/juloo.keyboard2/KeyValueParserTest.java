@@ -59,6 +59,19 @@ public class KeyValueParserTest
   }
 
   @Test
+  public void parse_app() throws Exception
+  {
+    Utils.parse("1P:app:com.onepassword.android",
+        KeyValue.makeAppKey("1P", "com.onepassword.android", 0));
+    Utils.parse("x:app:com.example.app_1,a", KeyValue.makeMacro("x", new KeyValue[]{
+      KeyValue.makeAppKey("", "com.example.app_1", 0),
+      str("a")
+    }, 0));
+    Utils.expect_error("x:app:");
+    Utils.expect_error("x:app:com.example,,");
+  }
+
+  @Test
   /* Using the [symbol:..] syntax but not resulting in a macro. */
   public void parse_non_macro() throws Exception
   {
