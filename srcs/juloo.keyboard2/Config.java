@@ -32,7 +32,12 @@ public final class Config
   public final float keyPadding;
 
   public final float labelTextSize;
-  public final float sublabelTextSize;
+  /** Size of the symbols in the corners of the keys, as a ratio of the key
+      size. From the 'corner_label_size' option. */
+  public float sublabelTextSize;
+  /** Color of the symbols in the corners of the keys. [0] means the color
+      defined by the theme. From the 'corner_label_color' option. */
+  public int corner_label_color;
 
   // From preferences
   /** [null] represent the [system] layout. */
@@ -188,6 +193,8 @@ public final class Config
     characterSize =
       _prefs.getFloat("character_size", 1.15f)
       * characterSizeScale;
+    sublabelTextSize = _prefs.getFloat("corner_label_size", 0.22f);
+    corner_label_color = parse_color_pref(_prefs.getString("corner_label_color", ""));
     theme = getThemeId(res, _prefs.getString("theme", ""));
     autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
     change_method_key_replacement = get_change_method_key_replacement(_prefs);
@@ -288,6 +295,15 @@ public final class Config
           return R.style.Light;
         return R.style.Dark;
     }
+  }
+
+  /** Parse a "#RRGGBB" color. Returns [0] for an empty or invalid value. */
+  private static int parse_color_pref(String s)
+  {
+    if (s == null || s.equals(""))
+      return 0;
+    try { return android.graphics.Color.parseColor(s); }
+    catch (Exception _e) { return 0; }
   }
 
   private static KeyValue get_change_method_key_replacement(SharedPreferences prefs)

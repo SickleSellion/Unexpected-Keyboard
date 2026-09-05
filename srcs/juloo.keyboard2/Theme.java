@@ -143,7 +143,8 @@ public class Theme
       key_activated = new Key(theme, config, keyWidth, true, KeyboardData.Key.Role.Normal);
       key_suggestion = new Key(theme, config, keyWidth, false, KeyboardData.Key.Role.Suggestion);
       indication_paint = init_label_paint(config, null);
-      indication_paint.setColor(theme.subLabelColor);
+      indication_paint.setColor(config.corner_label_color != 0
+          ? config.corner_label_color : theme.subLabelColor);
     }
 
     static Paint init_keyboard_background_paint(Theme theme, float height)
@@ -183,10 +184,13 @@ public class Theme
       {
         border_radius = config.borderConfig ? config.customBorderRadius * keyWidth : theme.keyBorderRadius;
         int bg_color;
+        // The custom border width applies to every kind of key, not only to
+        // the normal keys, so that rows made of action keys (number row,
+        // bottom row) get the same border.
         if (activated)
         {
           bg_color = theme.colorKeyActivated;
-          border_width = theme.keyBorderWidthActivated;
+          border_width = config.borderConfig ? config.customBorderLineWidth : theme.keyBorderWidthActivated;
           bg_paint.setAlpha(config.keyActivatedOpacity);
         }
         else
@@ -195,11 +199,11 @@ public class Theme
           {
             case Action:
               bg_color = theme.colorKeyAction;
-              border_width = theme.keyBorderWidthAction;
+              border_width = config.borderConfig ? config.customBorderLineWidth : theme.keyBorderWidthAction;
               break;
             case Space_bar:
               bg_color = theme.colorKeySpaceBar;
-              border_width = theme.keyBorderWidthSpaceBar;
+              border_width = config.borderConfig ? config.customBorderLineWidth : theme.keyBorderWidthSpaceBar;
               break;
             case Suggestion:
               bg_color = 0;

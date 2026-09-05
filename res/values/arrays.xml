@@ -156,4 +156,32 @@
     <item>landscape</item>
     <item>never</item>
   </string-array>
+  <string-array name="pref_corner_label_color_entries">
+    <item>@string/pref_corner_label_color_e_default</item>
+    <item>@string/pref_corner_label_color_e_white</item>
+    <item>@string/pref_corner_label_color_e_grey</item>
+    <item>@string/pref_corner_label_color_e_black</item>
+    <item>@string/pref_corner_label_color_e_red</item>
+    <item>@string/pref_corner_label_color_e_orange</item>
+    <item>@string/pref_corner_label_color_e_yellow</item>
+    <item>@string/pref_corner_label_color_e_green</item>
+    <item>@string/pref_corner_label_color_e_cyan</item>
+    <item>@string/pref_corner_label_color_e_blue</item>
+    <item>@string/pref_corner_label_color_e_purple</item>
+    <item>@string/pref_corner_label_color_e_pink</item>
+  </string-array>
+  <string-array name="pref_corner_label_color_values">
+    <item></item>
+    <item>#FFFFFF</item>
+    <item>#BDBDBD</item>
+    <item>#000000</item>
+    <item>#FF5252</item>
+    <item>#FFAB40</item>
+    <item>#FFD740</item>
+    <item>#69F0AE</item>
+    <item>#40C4FF</item>
+    <item>#448AFF</item>
+    <item>#B388FF</item>
+    <item>#FF80AB</item>
+  </string-array>
 </resources>

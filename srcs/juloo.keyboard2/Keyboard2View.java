@@ -442,6 +442,10 @@ public class Keyboard2View extends View
       }
       return _theme.pressedColor;
     }
+    // Custom color for the symbols in the corners of the keys.
+    if (sublabel && _config.corner_label_color != 0
+        && !k.hasFlagsAny(KeyValue.FLAG_GREYED))
+      return _config.corner_label_color;
     if (k.hasFlagsAny(KeyValue.FLAG_SECONDARY | KeyValue.FLAG_GREYED))
     {
       if (k.hasFlagsAny(KeyValue.FLAG_GREYED))
