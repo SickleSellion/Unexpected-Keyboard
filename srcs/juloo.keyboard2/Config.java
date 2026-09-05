@@ -388,9 +388,6 @@ public final class Config
         if (custom_layout != null && !custom_layout.equals(""))
           l.add(LayoutsPreference.CustomLayout.parse(custom_layout));
         LayoutsPreference.save_to_preferences(e, l);
-        // Fork: seed the preferences of a fresh install.
-        if (ForkDefaults.should_apply(prefs))
-          ForkDefaults.apply(e);
         // Fallthrough
       case 1:
         boolean add_number_row = prefs.getBoolean("number_row", false);
@@ -408,6 +405,9 @@ public final class Config
       case 4:
       default: break;
     }
+    // Fork: seed after migrations so case 1 cannot overwrite number_row.
+    if (saved_version == 0 && ForkDefaults.should_apply(prefs))
+      ForkDefaults.apply(e);
     e.apply();
   }
 

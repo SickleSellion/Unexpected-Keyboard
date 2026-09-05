@@ -9,7 +9,7 @@
     <key c="t" ne="5" sw="%"/>
     <key c="y" ne="6" sw="^"/>
     <key c="u" ne="7" sw="&amp;"/>
-    <key c="i" ne="\?" sw="*" se=","/>
+    <key c="i" ne="8" sw="*" se=","/>
     <key c="o" ne="9" sw="(" se="."/>
     <key c="p" ne="0" sw="1P:app:com.onepassword.android" se="autofill"/>
   </row>
