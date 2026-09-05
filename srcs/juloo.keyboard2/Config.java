@@ -367,6 +367,9 @@ public final class Config
         if (custom_layout != null && !custom_layout.equals(""))
           l.add(LayoutsPreference.CustomLayout.parse(custom_layout));
         LayoutsPreference.save_to_preferences(e, l);
+        // Fork: seed the preferences of a fresh install.
+        if (ForkDefaults.should_apply(prefs))
+          ForkDefaults.apply(e);
         // Fallthrough
       case 1:
         boolean add_number_row = prefs.getBoolean("number_row", false);
