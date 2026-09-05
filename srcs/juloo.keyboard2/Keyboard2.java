@@ -131,8 +131,11 @@ public class Keyboard2 extends InputMethodService
   public void onCreate()
   {
     super.onCreate();
+    // Enabled early so that the first [Config.refresh] is logged.
+    Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     SharedPreferences prefs = DirectBootAwarePreferences.get_shared_preferences(this);
     _handler = new Handler(getMainLooper());
+    Logs.debug("Keyboard2.onCreate isFoldableDevice=" + FoldStateTracker.isFoldableDevice(this));
     _foldStateTracker = new FoldStateTracker(this);
     _dictionaries = Dictionaries.instance(this);
     Config.initGlobalConfig(prefs, getResources(),
@@ -144,7 +147,6 @@ public class Keyboard2 extends InputMethodService
     KeyValue.Stateful._handler = recvr;
     _config.handler = _keyeventhandler;
     prefs.registerOnSharedPreferenceChangeListener(this);
-    Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
     refreshSubtypeImm();
     create_keyboard_view();
     ClipboardHistoryService.on_startup(this, _keyeventhandler);
@@ -244,6 +246,8 @@ public class Keyboard2 extends InputMethodService
     _keyboard_container_view.setBackground(bg);
     _keyboard_layout_view.reset();
     refresh_candidates_view();
+    Logs.debug_refresh_config(prev_theme, _config.theme,
+        _candidates_view.getVisibility() == View.VISIBLE, _config.split_layout);
   }
 
   private KeyboardData refresh_special_layout()
@@ -386,6 +390,15 @@ public class Keyboard2 extends InputMethodService
   {
     /* Entirely disable fullscreen mode. */
     return false;
+  }
+
+  /** Diagnostics only. The platform re-creates its views and calls
+      [onStartInputView] again after this returns. */
+  @Override
+  public void onConfigurationChanged(Configuration newConfig)
+  {
+    Logs.debug_configuration_changed(newConfig);
+    super.onConfigurationChanged(newConfig);
   }
 
   @Override

@@ -204,6 +204,7 @@ public final class Config
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
     split_layout = get_split_layout();
+    Logs.debug_config_refresh(this, dm, res.getConfiguration(), keyboardHeightPercent);
   }
 
   public int get_current_layout()

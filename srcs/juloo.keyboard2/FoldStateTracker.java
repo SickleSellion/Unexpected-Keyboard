@@ -57,9 +57,27 @@ public class FoldStateTracker {
                 }
             }
 
+            Logs.debug("FoldStateTracker.accept"
+                    + " thread=" + Thread.currentThread().getName()
+                    + " features=" + newLayoutInfo.getDisplayFeatures().size()
+                    + " folding=" + describe(_foldingFeature)
+                    + " unfolded=" + (old != null) + "->" + (_foldingFeature != null)
+                    + " callback=" + (_changedCallback != null));
+
             if (old != _foldingFeature && _changedCallback != null) {
                 _changedCallback.run();
             }
         }
+    }
+
+    /** Diagnostics only. */
+    static String describe(FoldingFeature f) {
+        if (f == null)
+            return "none";
+        return "{state=" + f.getState()
+            + " orientation=" + f.getOrientation()
+            + " separating=" + f.isSeparating()
+            + " occlusion=" + f.getOcclusionType()
+            + " bounds=" + f.getBounds().toShortString() + "}";
     }
 }
