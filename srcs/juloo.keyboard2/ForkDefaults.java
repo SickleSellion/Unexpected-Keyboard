@@ -28,15 +28,28 @@ public final class ForkDefaults
   {
     LayoutsPreference.save_to_preferences(e, Collections.singletonList(
           (LayoutsPreference.Layout)new LayoutsPreference.NamedLayout(DEFAULT_LAYOUT)));
-    e.putString("theme", "gradientpurplepink");
+    // Look
+    e.putString("theme", "pine");
+    e.putBoolean("border_config", true);
+    e.putFloat("custom_border_line_width", 2.8f);
+    e.putInt("custom_border_radius", 7);
+    e.putFloat("character_size", 0.98f);
+    e.putInt("key_activated_opacity", 73);
+    // Layout and sizes
     e.putString("number_row", "symbols");
-    e.putString("change_method_key_replacement", "picker");
-    e.putString("slider_sensitivity", "15");
     e.putInt("keyboard_height_unfolded", 17);
     e.putInt("margin_bottom_portrait_unfolded", 0);
     e.putInt("margin_bottom_landscape", 9);
-    e.putInt("key_activated_opacity", 73);
+    e.putInt("horizontal_margin_portrait_unfolded", 0);
+    e.putInt("horizontal_margin_landscape_unfolded", 0);
+    e.putFloat("key_horizontal_margin", 0f);
+    e.putFloat("key_vertical_margin", 1.25f);
+    // Typing
+    e.putString("swipe_dist", "7.5");
+    e.putString("slider_sensitivity", "15");
     e.putInt("longpress_timeout", 597);
+    e.putBoolean("lock_double_tap", true);
     e.putBoolean("vibrate_custom", true);
+    e.putString("change_method_key_replacement", "picker");
   }
 }
