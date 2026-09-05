@@ -5,7 +5,7 @@ import java.util.Collections;
 import juloo.keyboard2.prefs.LayoutsPreference;
 
 /** Preferences seeded on a fresh install of this fork, so that a new install
-    starts with the layout, theme and sizes tuned for the Galaxy Z Fold.
+    starts with the layout, theme and sizes tuned on the Galaxy Z Fold.
 
     Only values that differ from upstream's defaults are listed. They are
     written once, from [Config.migrate], when no preference has been saved yet;
@@ -33,8 +33,12 @@ public final class ForkDefaults
     e.putBoolean("border_config", true);
     e.putFloat("custom_border_line_width", 2.8f);
     e.putInt("custom_border_radius", 7);
-    e.putFloat("character_size", 0.98f);
+    e.putFloat("character_size", 1.05f);
     e.putInt("key_activated_opacity", 73);
+    // Corner symbols
+    e.putFloat("corner_label_size", 0.24f);
+    e.putString("corner_label_color", "#F7FF9B");
+    e.putInt("corner_label_inset", 12);
     // Layout and sizes
     e.putString("number_row", "symbols");
     e.putInt("keyboard_height_unfolded", 17);
