@@ -186,4 +186,6 @@
   <string name="pref_corner_label_color_e_blue">Blue</string>
   <string name="pref_corner_label_color_e_purple">Purple</string>
   <string name="pref_corner_label_color_e_pink">Pink</string>
+  <string name="pref_corner_label_inset_title">Corner symbols position</string>
+  <string name="pref_corner_label_inset_summary">Move the corner symbols towards the center of the keys (%s%%)</string>
 </resources>

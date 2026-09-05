@@ -477,15 +477,18 @@ public class Keyboard2View extends View
       return;
     float textSize = scaleTextSize(kv, false);
     Paint p = tc.sublabel_paint(kv.hasFlagsAny(KeyValue.FLAG_KEY_FONT), labelColor(kv, isKeyDown, true), textSize, a);
-    float subPadding = _config.keyPadding;
+    // Symbols are moved towards the center of the key by the 'corner_label_inset'
+    // option, proportionally to the key size.
+    float subPaddingX = _config.keyPadding + _config.corner_label_inset * keyW / 2f;
+    float subPaddingY = _config.keyPadding + _config.corner_label_inset * keyH / 2f;
     if (v == Vertical.CENTER)
       y += (keyH - p.ascent() - p.descent()) / 2f;
     else
-      y += (v == Vertical.TOP) ? subPadding - p.ascent() : keyH - subPadding - p.descent();
+      y += (v == Vertical.TOP) ? subPaddingY - p.ascent() : keyH - subPaddingY - p.descent();
     if (a == Paint.Align.CENTER)
       x += keyW / 2f;
     else
-      x += (a == Paint.Align.LEFT) ? subPadding : keyW - subPadding;
+      x += (a == Paint.Align.LEFT) ? subPaddingX : keyW - subPaddingX;
     String label = kv.getString();
     int label_len = label.length();
     // Limit the label of string keys to 3 characters

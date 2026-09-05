@@ -38,6 +38,10 @@ public final class Config
   /** Color of the symbols in the corners of the keys. [0] means the color
       defined by the theme. From the 'corner_label_color' option. */
   public int corner_label_color;
+  /** How far the symbols in the corners are moved towards the center of the
+      key, as a ratio of the half key size. [0] keeps them in the corners.
+      From the 'corner_label_inset' option. */
+  public float corner_label_inset;
 
   // From preferences
   /** [null] represent the [system] layout. */
@@ -195,6 +199,7 @@ public final class Config
       * characterSizeScale;
     sublabelTextSize = _prefs.getFloat("corner_label_size", 0.22f);
     corner_label_color = parse_color_pref(_prefs.getString("corner_label_color", ""));
+    corner_label_inset = _prefs.getInt("corner_label_inset", 0) / 100.f;
     theme = getThemeId(res, _prefs.getString("theme", ""));
     autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
     change_method_key_replacement = get_change_method_key_replacement(_prefs);
