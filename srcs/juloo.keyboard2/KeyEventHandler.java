@@ -9,6 +9,7 @@ import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import java.util.Iterator;
+import juloo.keyboard2.suggestions.Autocorrection;
 import juloo.keyboard2.suggestions.Suggestions;
 
 public final class KeyEventHandler
@@ -58,6 +59,7 @@ public final class KeyEventHandler
       conf.editor_config.should_move_cursor_force_fallback;
     _space_bar_auto_complete = conf.space_bar_auto_complete;
     _last_action = null;
+    _autocorrect_rejected = null;
   }
 
   /** Selection has been updated. */
@@ -546,15 +548,27 @@ public final class KeyEventHandler
       backspace. */
   int last_replacement_word_len = 0;
 
+  /** The word the user restored with backspace after an autocorrection. It is
+      not corrected again, see [Autocorrection]. */
+  String _autocorrect_rejected = null;
+
   /** Implement autocorrect when enabled in the settings. */
   void handle_space_bar()
   {
-    if (_space_bar_auto_complete && _suggestions.count > 0
+    if (_space_bar_auto_complete
         && !_typedword.is_selection_not_empty()
         && _typedword.cursor_relative() == 0)
-      suggestion_entered(_suggestions.suggestions[0] + " ");
-    else
-      send_text(" ");
+    {
+      String best = (_suggestions.count > 0) ? _suggestions.suggestions[0] : null;
+      String repl = Autocorrection.replacement(_typedword.get(), best,
+          _autocorrect_rejected);
+      if (repl != null)
+      {
+        suggestion_entered(repl + " ");
+        return;
+      }
+    }
+    send_text(" ");
   }
 
   /** Undo the last autocorrect. */
@@ -564,6 +578,8 @@ public final class KeyEventHandler
         && last_replaced_word != null)
     {
       replace_surrounding_text(last_replacement_word_len, 0, last_replaced_word);
+      // Typing space again must not correct the same word a second time.
+      _autocorrect_rejected = last_replaced_word;
       last_replaced_word = null;
     }
     else
