@@ -223,37 +223,39 @@ public class Keyboard2View extends View
     return (true);
   }
 
+  /** Touches slightly outside the keys are attributed to the nearest key
+      rather than dropped: within this fraction of a key width horizontally
+      (gaps between keys, ends of the rows)... */
+  static final float SNAP_HORIZONTAL = 0.5f;
+  /** ... and within this fraction of a row height below the last row. The
+      top margin is always attributed to the first row. */
+  static final float SNAP_BELOW = 0.3f;
+
   private KeyboardData.Row getRowAtPosition(float ty)
   {
+    List<KeyboardData.Row> rows = _keyboard.rows;
+    if (rows.size() == 0)
+      return null;
     float y = _config.marginTop;
     if (ty < y)
-      return null;
-    for (KeyboardData.Row row : _keyboard.rows)
+      return rows.get(0);
+    for (KeyboardData.Row row : rows)
     {
       y += (row.shift + row.height) * _tc.row_height;
       if (ty < y)
         return row;
     }
+    if (ty < y + SNAP_BELOW * _tc.row_height)
+      return rows.get(rows.size() - 1);
     return null;
   }
 
   private KeyboardData.Key getKeyAtPosition(float tx, float ty)
   {
     KeyboardData.Row row = getRowAtPosition(ty);
-    float x = _marginLeft;
-    if (row == null || tx < x)
+    if (row == null)
       return null;
-    for (KeyboardData.Key key : row.keys)
-    {
-      float xLeft = x + key.shift * _keyWidth;
-      float xRight = xLeft + key.width * _keyWidth;
-      if (tx < xLeft)
-        return null;
-      if (tx < xRight)
-        return key;
-      x = xRight;
-    }
-    return null;
+    return row.get_key_at_x((tx - _marginLeft) / _keyWidth, SNAP_HORIZONTAL);
   }
 
   private void vibrate()

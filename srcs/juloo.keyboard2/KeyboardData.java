@@ -394,6 +394,39 @@ public final class KeyboardData
         return null;
       return keys.get(pos.col);
     }
+
+    /** Key at the horizontal position [x], in key width units from the start
+        of the row. Touches landing in a gap (the [shift] of a key or the
+        empty space after the last key) are attributed to the nearest key
+        when it is closer than [tolerance], so that a slightly off tap still
+        types something rather than being silently dropped. Returns [null]
+        when no key is close enough. */
+    public Key get_key_at_x(float x, float tolerance)
+    {
+      Key prev = null;
+      float left = 0f;
+      for (Key k : keys)
+      {
+        float gap_start = left;
+        left += k.shift;
+        float right = left + k.width;
+        if (x < left) // In the gap before [k]
+        {
+          float d_prev = (prev == null) ? Float.MAX_VALUE : x - gap_start;
+          float d_next = left - x;
+          if (d_prev <= d_next)
+            return (d_prev <= tolerance) ? prev : null;
+          return (d_next <= tolerance) ? k : null;
+        }
+        if (x < right)
+          return k;
+        prev = k;
+        left = right;
+      }
+      if (prev != null && x - left <= tolerance)
+        return prev;
+      return null;
+    }
   }
 
   public static class Key
