@@ -3,6 +3,7 @@ package juloo.keyboard2;
 import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.inputmethod.ExtractedText;
@@ -58,6 +59,10 @@ public final class KeyEventHandler
     _move_cursor_force_fallback =
       conf.editor_config.should_move_cursor_force_fallback;
     _space_bar_auto_complete = conf.space_bar_auto_complete;
+    // Only in editors that expect sentences (they ask for capitalisation),
+    // not in search boxes, URLs, terminals or code editors.
+    _double_space_period = conf.double_space_period
+      && conf.editor_config.caps_mode != 0;
     _last_action = null;
     _autocorrect_rejected = null;
   }
@@ -552,9 +557,19 @@ public final class KeyEventHandler
       not corrected again, see [Autocorrection]. */
   String _autocorrect_rejected = null;
 
-  /** Implement autocorrect when enabled in the settings. */
+  /** Whether tapping space twice quickly types a period. */
+  boolean _double_space_period = false;
+  /** [SystemClock.uptimeMillis()] when the space bar last typed a space. */
+  long _last_space_ms = 0;
+  /** Maximum delay between the two taps on the space bar that type a period,
+      in milliseconds. */
+  static final long DOUBLE_SPACE_TIMEOUT_MS = 700;
+
+  /** Implement autocorrect and the double space period when enabled in the
+      settings. */
   void handle_space_bar()
   {
+    long now = SystemClock.uptimeMillis();
     if (_space_bar_auto_complete
         && !_typedword.is_selection_not_empty()
         && _typedword.cursor_relative() == 0)
@@ -566,10 +581,46 @@ public final class KeyEventHandler
       {
         suggestion_entered(repl + " ");
         _recv.on_autocorrection();
+        _last_space_ms = now;
         return;
       }
     }
+    if (_double_space_period
+        && (_last_action == LastAction.SPACE
+          || _last_action == LastAction.SUGGESTION_ENTERED)
+        && now - _last_space_ms <= DOUBLE_SPACE_TIMEOUT_MS
+        && !_typedword.is_selection_not_empty()
+        && space_follows_a_word())
+    {
+      // Replace the previous space with a period followed by a space.
+      replace_surrounding_text(1, 0, ". ");
+      // Keep auto-capitalisation in sync so that the next word is capitalised.
+      _autocap.event_sent(KeyEvent.KEYCODE_DEL, 0);
+      _autocap.typed(". ");
+      return;
+    }
     send_text(" ");
+    _next_last_action = LastAction.SPACE;
+    _last_space_ms = now;
+  }
+
+  /** Whether the text before the cursor ends with a word followed by a single
+      space. Queries the editor. */
+  boolean space_follows_a_word()
+  {
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return false;
+    CharSequence t = conn.getTextBeforeCursor(2, 0);
+    return t != null && t.length() == 2 && t.charAt(1) == ' '
+      && ends_a_sentence_word(t.charAt(0));
+  }
+
+  /** Letters, digits and closing punctuation can be followed by a period. */
+  static boolean ends_a_sentence_word(char c)
+  {
+    return Character.isLetterOrDigit(c)
+      || ")]}\"'”’»".indexOf(c) >= 0;
   }
 
   /** Undo the last autocorrect. */
@@ -617,6 +668,8 @@ public final class KeyEventHandler
   public static enum LastAction
   {
     SUGGESTION_ENTERED,
+    /** A space typed with the space bar. */
+    SPACE,
     OTHER
   }
 }
