@@ -39,6 +39,8 @@
     <string name="pref_space_bar_auto_complete_title">Autocomplete with the space bar</string>
     <string name="pref_space_bar_auto_complete_summary">Enter the best suggestion by pressing space</string>
     <string name="pref_category_typing">Typing</string>
+    <string name="pref_key_preview_title">Show the pressed symbol above the key</string>
+    <string name="pref_key_preview_summary">A bubble shows what will be typed, including the corner symbol selected by a swipe</string>
     <string name="pref_swipe_dist_title">Swiping distance</string>
     <string name="pref_swipe_dist_summary">Distance of characters in the corners of the keys (%s)</string>
     <string name="pref_long_timeout_title">Long press timeout</string>

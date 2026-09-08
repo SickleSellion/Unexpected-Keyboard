@@ -83,6 +83,23 @@ public final class Pointers implements Handler.Callback
     return -1;
   }
 
+  /** Value currently selected by the pointer [pointerId], with the modifiers
+      applied. [null] if the pointer is unknown or selects nothing. Used by
+      the key preview. */
+  public KeyValue getPointerValue(int pointerId)
+  {
+    Pointer ptr = getPtr(pointerId);
+    return (ptr == null) ? null : ptr.value;
+  }
+
+  /** Whether the pointer [pointerId] has moved out of the center of its key,
+      that is, whether its value comes from a swipe or a gesture. */
+  public boolean isPointerSwiped(int pointerId)
+  {
+    Pointer ptr = getPtr(pointerId);
+    return ptr != null && ptr.gesture != null;
+  }
+
   /** The key must not be already latched . */
   void add_fake_pointer(KeyboardData.Key key, KeyValue kv, boolean locked)
   {

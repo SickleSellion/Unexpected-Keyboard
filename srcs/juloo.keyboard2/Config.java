@@ -76,6 +76,8 @@ public final class Config
   public int keyOpacity; // 0 - 255
   public int keyActivatedOpacity; // 0 - 255
   public boolean double_tap_lock_shift;
+  /** Show the symbol about to be typed above the pressed key. */
+  public boolean key_preview;
   public float characterSize; // Ratio
   public int theme; // Values are R.style.*
   public boolean autocapitalisation;
@@ -198,6 +200,7 @@ public final class Config
     horizontal_margin =
       get_dip_pref_oriented(dm, "horizontal_margin", 3, 28);
     double_tap_lock_shift = _prefs.getBoolean("lock_double_tap", false);
+    key_preview = _prefs.getBoolean("key_preview", true);
     characterSize =
       _prefs.getFloat("character_size", 1.15f)
       * characterSizeScale;

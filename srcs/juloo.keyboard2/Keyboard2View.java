@@ -55,6 +55,15 @@ public class Keyboard2View extends View
 
   private static RectF _tmpRect = new RectF();
 
+  /** Bubble showing the symbol about to be typed, see [KeyPreview]. [null]
+      until it is needed. */
+  private KeyPreview _key_preview = null;
+  /** The pointer followed by the preview and the key it pressed. Only the
+      most recent pointer is followed. [-1] and [null] when none. */
+  private int _preview_pointer = -1;
+  private KeyboardData.Key _preview_key = null;
+  private static RectF _tmpKeyRect = new RectF();
+
   enum Vertical
   {
     TOP,
@@ -206,7 +215,10 @@ public class Keyboard2View extends View
     {
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_POINTER_UP:
-        _pointers.onTouchUp(event.getPointerId(event.getActionIndex()));
+        int up_id = event.getPointerId(event.getActionIndex());
+        _pointers.onTouchUp(up_id);
+        if (up_id == _preview_pointer)
+          preview_end();
         break;
       case MotionEvent.ACTION_DOWN:
       case MotionEvent.ACTION_POINTER_DOWN:
@@ -215,14 +227,20 @@ public class Keyboard2View extends View
         float ty = event.getY(p);
         KeyboardData.Key key = getKeyAtPosition(tx, ty);
         if (key != null)
-          _pointers.onTouchDown(tx, ty, event.getPointerId(p), key);
+        {
+          int down_id = event.getPointerId(p);
+          _pointers.onTouchDown(tx, ty, down_id, key);
+          preview_follow(down_id, key);
+        }
         break;
       case MotionEvent.ACTION_MOVE:
         for (p = 0; p < event.getPointerCount(); p++)
           _pointers.onTouchMove(event.getX(p), event.getY(p), event.getPointerId(p));
+        preview_refresh();
         break;
       case MotionEvent.ACTION_CANCEL:
         _pointers.onTouchCancel();
+        preview_end();
         break;
       default:
         return (false);
@@ -268,6 +286,75 @@ public class Keyboard2View extends View
   private void vibrate(VibratorCompat.Feedback f)
   {
     VibratorCompat.vibrate(this, _config, f);
+  }
+
+  // Key preview
+
+  /** Follow the pointer [pointer] that just pressed [key]. */
+  private void preview_follow(int pointer, KeyboardData.Key key)
+  {
+    _preview_pointer = pointer;
+    _preview_key = key;
+    preview_refresh();
+  }
+
+  private void preview_end()
+  {
+    _preview_pointer = -1;
+    _preview_key = null;
+    if (_key_preview != null)
+      _key_preview.hide();
+  }
+
+  /** Show the value currently selected by the followed pointer, which changes
+      as the pointer swipes. */
+  private void preview_refresh()
+  {
+    if (_preview_pointer == -1)
+      return;
+    KeyValue kv = _config.key_preview ?
+      _pointers.getPointerValue(_preview_pointer) : null;
+    if (kv == null || !KeyPreview.should_preview(kv)
+        || !keyRect(_preview_key, _tmpKeyRect))
+    {
+      if (_key_preview != null)
+        _key_preview.hide();
+      return;
+    }
+    if (_key_preview == null || _key_preview.getParent() == null)
+    {
+      _key_preview = KeyPreview.install(this, _theme);
+      if (_key_preview == null)
+        return;
+    }
+    _key_preview.show(this, kv, _pointers.isPointerSwiped(_preview_pointer),
+        _tmpKeyRect.left, _tmpKeyRect.top, _tmpKeyRect.width(),
+        _tmpKeyRect.height(), _mainLabelSize * 1.5f, _tc.key.border_radius);
+  }
+
+  /** Compute into [out] the rectangle of [key] as drawn by [onDraw]. Returns
+      [false] if the key is not on the current layout. */
+  private boolean keyRect(KeyboardData.Key key, RectF out)
+  {
+    float y = _tc.margin_top;
+    for (KeyboardData.Row row : _keyboard.rows)
+    {
+      y += row.shift * _tc.row_height;
+      float x = _marginLeft + _tc.margin_left;
+      float keyH = row.height * _tc.row_height - _tc.vertical_margin;
+      for (KeyboardData.Key k : row.keys)
+      {
+        x += k.shift * _keyWidth;
+        if (k == key)
+        {
+          out.set(x, y, x + _keyWidth * k.width - _tc.horizontal_margin, y + keyH);
+          return true;
+        }
+        x += _keyWidth * k.width;
+      }
+      y += row.height * _tc.row_height;
+    }
+    return false;
   }
 
   @Override
@@ -405,6 +492,14 @@ public class Keyboard2View extends View
   public void onDetachedFromWindow()
   {
     super.onDetachedFromWindow();
+    // The input view is detached and attached again at every start of input.
+    // The preview lives in the window: keep it for the next attach but make
+    // sure nothing stays on screen. It is replaced when the theme changes,
+    // see [KeyPreview.install].
+    if (_key_preview != null)
+      _key_preview.hide_now();
+    _preview_pointer = -1;
+    _preview_key = null;
   }
 
   /** Draw borders and background of the key. */
