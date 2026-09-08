@@ -554,6 +554,11 @@ public class Keyboard2 extends InputMethodService
       _keyboard_layout_view.set_selection_state(selection_is_ongoing);
     }
 
+    public void on_autocorrection()
+    {
+      _keyboard_layout_view.feedback(VibratorCompat.Feedback.CORRECTION);
+    }
+
     public InputConnection getCurrentInputConnection()
     {
       return Keyboard2.this.getCurrentInputConnection();

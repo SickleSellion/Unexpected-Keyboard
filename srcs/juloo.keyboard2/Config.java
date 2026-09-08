@@ -58,6 +58,8 @@ public final class Config
   public boolean vibrate_custom;
   // Control the vibration if [vibrate_custom] is true.
   public long vibrate_duration;
+  // Swipes and autocorrections vibrate differently from taps.
+  public boolean vibrate_distinct;
   public long longPressTimeout;
   public long longPressInterval;
   public boolean keyrepeat_enabled;
@@ -169,6 +171,7 @@ public final class Config
     slide_step_px = slider_sensitivity * swipe_scaling;
     vibrate_custom = _prefs.getBoolean("vibrate_custom", false);
     vibrate_duration = _prefs.getInt("vibrate_duration", 20);
+    vibrate_distinct = _prefs.getBoolean("vibrate_distinct", true);
     longPressTimeout = _prefs.getInt("longpress_timeout", 600);
     longPressInterval = _prefs.getInt("longpress_interval", 65);
     keyrepeat_enabled = _prefs.getBoolean("keyrepeat_enabled", true);

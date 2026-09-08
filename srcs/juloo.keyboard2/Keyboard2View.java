@@ -159,7 +159,7 @@ public class Keyboard2View extends View
     updateFlags();
     _config.handler.key_down(k, isSwipe);
     invalidate();
-    vibrate();
+    vibrate(isSwipe ? VibratorCompat.Feedback.SWIPE : VibratorCompat.Feedback.TAP);
   }
 
   public void onPointerUp(KeyValue k, Pointers.Modifiers mods)
@@ -182,7 +182,14 @@ public class Keyboard2View extends View
     updateFlags();
     invalidate();
     if (shouldVibrate)
-      vibrate();
+      vibrate(VibratorCompat.Feedback.TAP);
+  }
+
+  /** Called from [Keyboard2] for events that do not come from a key press,
+      such as a word being autocorrected. */
+  public void feedback(VibratorCompat.Feedback f)
+  {
+    vibrate(f);
   }
 
   private void updateFlags()
@@ -258,9 +265,9 @@ public class Keyboard2View extends View
     return row.get_key_at_x((tx - _marginLeft) / _keyWidth, SNAP_HORIZONTAL);
   }
 
-  private void vibrate()
+  private void vibrate(VibratorCompat.Feedback f)
   {
-    VibratorCompat.vibrate(this, _config);
+    VibratorCompat.vibrate(this, _config, f);
   }
 
   @Override

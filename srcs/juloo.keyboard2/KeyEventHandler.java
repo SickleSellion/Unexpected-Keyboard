@@ -565,6 +565,7 @@ public final class KeyEventHandler
       if (repl != null)
       {
         suggestion_entered(repl + " ");
+        _recv.on_autocorrection();
         return;
       }
     }
@@ -595,6 +596,8 @@ public final class KeyEventHandler
     public void set_shift_state(boolean state, boolean lock);
     public void set_compose_pending(boolean pending);
     public void selection_state_changed(boolean selection_is_ongoing);
+    /** A word was replaced by the space bar. */
+    public void on_autocorrection();
     public InputConnection getCurrentInputConnection();
     public Handler getHandler();
   }
