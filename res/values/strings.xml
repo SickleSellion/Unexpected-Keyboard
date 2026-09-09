@@ -66,7 +66,7 @@
     <string name="pref_library_words_title">Words and phrases</string>
     <string name="pref_library_snippets_title">Personal snippets (email address, username)</string>
     <string name="pref_space_bar_swipe_suggestions_title">Swipe the space bar to enter a suggestion</string>
-    <string name="pref_space_bar_swipe_suggestions_summary">The suggestions are shown on the corners of the space bar: swipe up for the middle one, up-left for the left one, up-right for the right one</string>
+    <string name="pref_space_bar_swipe_suggestions_summary">The suggestions are shown on the corners of the space bar: swipe up for the middle one, up-left for the left one, up-right for the right one. While text is selected, the suggestions are replacements for it: swipe up, or tap one, to replace the whole selection</string>
     <string name="pref_hide_navigation_bar_title">Hide the navigation bar under the keyboard</string>
     <string name="pref_hide_navigation_bar_summary">With gesture navigation, removes the keyboard switch and hide buttons the system draws under the keys and moves the keyboard down, keeping only the home gesture area</string>
     <string name="bar_switch_keyboard">Switch keyboard</string>

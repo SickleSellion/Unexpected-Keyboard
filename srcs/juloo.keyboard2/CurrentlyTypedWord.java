@@ -25,6 +25,8 @@ public final class CurrentlyTypedWord
   boolean _has_selection = false;
   /** Used to avoid concurrent refreshes in [delayed_refresh()]. */
   boolean _refresh_pending = false;
+  /** Used to coalesce the queries of [delayed_selection_query()]. */
+  boolean _selection_query_pending = false;
 
   /** The estimated cursor position in code points. Used to avoid expensive IPC
       calls when the typed word can be estimated locally with [typed]. When the
@@ -71,6 +73,8 @@ public final class CurrentlyTypedWord
       _w_cursor = (e.initial_text_after_cursor == null) ? 0 :
         -append_chars(e.initial_text_after_cursor); 
     }
+    else
+      delayed_selection_query();
   }
 
   public void typed(String s)
@@ -193,7 +197,10 @@ public final class CurrentlyTypedWord
     _refresh_pending = false;
     _w_cursor = 0;
     if (_has_selection)
+    {
       set_current_word("");
+      delayed_selection_query();
+    }
     else if (VERSION.SDK_INT >= 31)
       set_current_word(_ic.getSurroundingText(20, 20, 0));
     else
@@ -244,6 +251,29 @@ public final class CurrentlyTypedWord
     }
   };
 
+  /** Text is selected: tell the callback what it is, so that replacements
+      can be suggested. The selection changes at every step of a slide, so
+      wait for it to settle and query it at most every 100 ms. */
+  void delayed_selection_query()
+  {
+    if (_selection_query_pending)
+      return;
+    _selection_query_pending = true;
+    _handler.postDelayed(selection_query_run, 100);
+  }
+
+  Runnable selection_query_run = new Runnable()
+  {
+    public void run()
+    {
+      _selection_query_pending = false;
+      if (!_has_selection || _ic == null)
+        return;
+      CharSequence sel = _ic.getSelectedText(0);
+      _callback.selected_text((sel == null) ? "" : sel.toString());
+    }
+  };
+
   /** A word is the longest consecutive sequence for which [is_word_char]
       returns [true]. */
   public static boolean is_word_char(int c)
@@ -254,5 +284,9 @@ public final class CurrentlyTypedWord
   public static interface Callback
   {
     public void currently_typed_word(String word);
+    /** Text is selected in the editor. [text] is empty when the editor
+        cannot tell what it is. Called a moment after the selection settles.
+        The current word is empty in the meantime. */
+    public void selected_text(String text);
   }
 }

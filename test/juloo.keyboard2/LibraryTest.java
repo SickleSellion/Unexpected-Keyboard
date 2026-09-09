@@ -40,6 +40,31 @@ public class LibraryTest
   }
 
   @Test
+  public void distance_counts_typos()
+  {
+    assertEquals(0, Library.distance("doin", "doin", 2));
+    assertEquals(1, Library.distance("doin", "dion", 2)); // swapped
+    assertEquals(1, Library.distance("doin", "doi", 2)); // missing
+    assertEquals(1, Library.distance("doin", "doing", 2)); // added
+    assertEquals(1, Library.distance("doin", "dain", 2)); // wrong
+    assertEquals(2, Library.distance("doin", "dino", 2));
+    assertTrue(Library.distance("doin", "elephant", 1) > 1);
+  }
+
+  @Test
+  public void close_matches_one_typo_away_skipping_listed()
+  {
+    String[] out = new String[3];
+    int n = Library.close_matches(ENTRIES, "Dion", 1, out, 0, 3);
+    assertEquals(1, n);
+    assertEquals("doin", out[0]);
+    out[0] = "doin";
+    assertEquals(1, Library.close_matches(ENTRIES, "doin", 1, out, 1, 3));
+    assertEquals(0, Library.close_matches(ENTRIES, "dxxn", 1, out, 0, 3));
+    assertEquals(0, Library.close_matches(ENTRIES, "", 1, out, 0, 3));
+  }
+
+  @Test
   public void contains_ignores_case()
   {
     assertTrue(Library.contains(ENTRIES, "DOIN"));

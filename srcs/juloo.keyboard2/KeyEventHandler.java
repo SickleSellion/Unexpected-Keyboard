@@ -150,6 +150,11 @@ public final class KeyEventHandler
   @Override
   public void suggestion_entered(String text)
   {
+    if (_typedword.is_selection_not_empty())
+    {
+      replace_selection(text);
+      return;
+    }
     if (_last_action == LastAction.GLIDE && _glide_word_len > 0)
     {
       // Replace the word typed by the last stroke, keeping its space.
@@ -175,6 +180,33 @@ public final class KeyEventHandler
   public void paste_from_clipboard_pane(String content)
   {
     send_text(content);
+  }
+
+  /** Replace the selected text with [text], keeping the whitespace around
+      it. Backspace puts the selected text back. */
+  void replace_selection(String text)
+  {
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    CharSequence sel = conn.getSelectedText(0);
+    String old = (sel == null) ? "" : sel.toString();
+    int b = 0, e = old.length();
+    while (b < e && Character.isWhitespace(old.charAt(b)))
+      b++;
+    while (e > b && Character.isWhitespace(old.charAt(e - 1)))
+      e--;
+    String repl = old.substring(0, b) + text + old.substring(e);
+    conn.commitText(repl, 1);
+    last_replaced_word = (sel == null) ? null : old;
+    last_replacement_word_len = repl.length();
+    _next_last_action = LastAction.SUGGESTION_ENTERED;
+  }
+
+  @Override
+  public void selected_text(String text)
+  {
+    _suggestions.selected_text(text);
   }
 
   @Override
@@ -436,8 +468,9 @@ public final class KeyEventHandler
       case Complete_third_space:
       {
         String s = st.toString();
+        // A replacement for the selected text does not get a space.
         if (s.length() > 0)
-          suggestion_entered(s + " ");
+          suggestion_entered(_typedword.is_selection_not_empty() ? s : s + " ");
         break;
       }
     }

@@ -56,6 +56,31 @@ public final class Suggestions
     _callback.set_suggestions(this);
   }
 
+  /** Longest selection to offer replacements for. */
+  static final int MAX_SELECTION_LEN = 48;
+
+  /** Text is selected in the editor: offer replacements for it, choosing
+      one replaces the whole selection (see
+      [KeyEventHandler.replace_selection]). Whitespace around the selection
+      is ignored and the selected text itself is not offered. */
+  public void selected_text(String text)
+  {
+    if (!_enabled)
+      return;
+    text = text.trim();
+    if (text.length() < 2 || text.length() > MAX_SELECTION_LEN
+        || text.indexOf('\n') >= 0
+        || (_config.current_dictionary == null
+          && _config.library_entries.length == 0))
+      clear();
+    else
+    {
+      query_suggestions(text);
+      remove_suggestion(text);
+    }
+    _callback.set_suggestions(this);
+  }
+
   /** In an editor asking for an email address, offer the library's email
       addresses before anything is typed. Returns whether it did. */
   boolean offer_snippets()
@@ -83,9 +108,13 @@ public final class Suggestions
   int query_suggestions(String word)
   {
     boolean first_char_upper = Character.isUpperCase(word.charAt(0));
-    // The user's own entries come first, as they are written.
+    // The user's own entries come first, as they are written: those that
+    // start with the word, then those one typo away from it.
     int i = Library.matches(_config.library_entries, word, suggestions, 0,
         MAX_COUNT);
+    if (word.length() >= 3)
+      i = Library.close_matches(_config.library_entries, word, 1, suggestions,
+          i, MAX_COUNT);
     int library_count = i;
     word = apply_substitutions(word);
     Cdict dict = _config.current_dictionary;
@@ -124,6 +153,18 @@ public final class Suggestions
         return i;
     suggestions[i] = w;
     return i + 1;
+  }
+
+  /** Remove [w] from the suggestions, ignoring case. */
+  void remove_suggestion(String w)
+  {
+    int j = 0;
+    for (int i = 0; i < count; i++)
+      if (!suggestions[i].equalsIgnoreCase(w))
+        suggestions[j++] = suggestions[i];
+    for (int i = j; i < count; i++)
+      suggestions[i] = null;
+    count = j;
   }
 
   /** Capitalise the dictionary results, from index [from]: the library

@@ -40,6 +40,85 @@ public final class Library
     return i;
   }
 
+  /** Like [matches] for the entries at most [max_dist] typos away from
+      [typed] (a typo is a missing, added, wrong or swapped character),
+      ignoring case, the closest first. Entries already in [out] are skipped.
+      Returns the new number of entries in [out]. */
+  public static int close_matches(String[] entries, String typed, int max_dist,
+      String[] out, int from, int max)
+  {
+    if (typed.length() == 0 || from >= max)
+      return from;
+    final String t = typed.toLowerCase();
+    List<String> found = new ArrayList<String>();
+    final List<Integer> dists = new ArrayList<Integer>();
+    for (String e : entries)
+    {
+      int d = distance(e.toLowerCase(), t, max_dist);
+      if (d > max_dist)
+        continue;
+      boolean listed = false;
+      for (int i = 0; i < from && !listed; i++)
+        listed = out[i].equalsIgnoreCase(e);
+      if (!listed)
+      {
+        found.add(e);
+        dists.add(d);
+      }
+    }
+    Integer[] order = new Integer[found.size()];
+    for (int i = 0; i < order.length; i++)
+      order[i] = i;
+    final List<String> found_ = found;
+    java.util.Arrays.sort(order, new Comparator<Integer>() {
+      public int compare(Integer a, Integer b)
+      {
+        int c = dists.get(a) - dists.get(b);
+        return (c != 0) ? c : found_.get(a).length() - found_.get(b).length();
+      }
+    });
+    int i = from;
+    for (Integer o : order)
+    {
+      if (i >= max)
+        break;
+      out[i++] = found.get(o);
+    }
+    return i;
+  }
+
+  /** Number of missing, added, wrong or swapped characters between [a] and
+      [b] (optimal string alignment distance), or any number above [max] when
+      the strings are further apart than that. */
+  static int distance(String a, String b, int max)
+  {
+    int n = a.length(), m = b.length();
+    if (Math.abs(n - m) > max)
+      return max + 1;
+    int[] prev2 = new int[m + 1], prev = new int[m + 1], cur = new int[m + 1];
+    for (int j = 0; j <= m; j++)
+      prev[j] = j;
+    for (int i = 1; i <= n; i++)
+    {
+      cur[0] = i;
+      int row_min = cur[0];
+      for (int j = 1; j <= m; j++)
+      {
+        int cost = (a.charAt(i - 1) == b.charAt(j - 1)) ? 0 : 1;
+        int d = Math.min(Math.min(prev[j] + 1, cur[j - 1] + 1), prev[j - 1] + cost);
+        if (i > 1 && j > 1 && a.charAt(i - 1) == b.charAt(j - 2)
+            && a.charAt(i - 2) == b.charAt(j - 1))
+          d = Math.min(d, prev2[j - 2] + 1);
+        cur[j] = d;
+        row_min = Math.min(row_min, d);
+      }
+      if (row_min > max)
+        return max + 1;
+      int[] t = prev2; prev2 = prev; prev = cur; cur = t;
+    }
+    return prev[m];
+  }
+
   /** Whether [word] is an entry, ignoring case. */
   public static boolean contains(String[] entries, String word)
   {
