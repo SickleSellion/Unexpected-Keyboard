@@ -423,6 +423,25 @@ public class Keyboard2 extends InputMethodService
       frame is the user's back, home and recents buttons and is left alone.
       [Keyboard2View] reserves only the gesture area when the frame is
       hidden. */
+  private View _navigation_bar_frame = null;
+  private View _navigation_bar_decor = null;
+  private boolean _navigation_bar_hidden = false;
+
+  /** The framework shows the frame again during its own layout passes. Hide
+      it before anything is drawn and cancel that draw, so the buttons never
+      flash. */
+  private final ViewTreeObserver.OnPreDrawListener _navigation_bar_pre_draw =
+    () -> {
+      View frame = _navigation_bar_frame;
+      if (_navigation_bar_hidden && frame != null
+          && frame.getVisibility() != View.GONE)
+      {
+        frame.setVisibility(View.GONE);
+        return false;
+      }
+      return true;
+    };
+
   void apply_navigation_bar_visibility()
   {
     Window w = getWindow().getWindow();
@@ -431,30 +450,24 @@ public class Keyboard2 extends InputMethodService
     View decor = w.getDecorView();
     boolean hide = _config.hide_navigation_bar && is_gesture_navigation(this);
     View frame = find_navigation_bar_frame(decor);
+    _navigation_bar_frame = frame;
+    _navigation_bar_hidden = hide;
     if (frame == null)
     {
       Logs.debug("NavigationBar: frame not found, hide=" + hide
           + " decor=" + describe_view_tree(decor, 0));
       return;
     }
+    if (_navigation_bar_decor != decor)
+    {
+      decor.getViewTreeObserver().addOnPreDrawListener(_navigation_bar_pre_draw);
+      _navigation_bar_decor = decor;
+    }
     int vis = hide ? View.GONE : View.VISIBLE;
     if (frame.getVisibility() != vis)
     {
       Logs.debug("NavigationBar: frame " + frame.getVisibility() + " -> " + vis);
       frame.setVisibility(vis);
-    }
-    if (hide)
-    {
-      // The framework may show the frame again while laying out the window;
-      // check once more after the next layout pass.
-      final View f = frame;
-      f.post(() -> {
-        if (f.getVisibility() != View.GONE)
-        {
-          Logs.debug("NavigationBar: frame re-shown by the system, hiding again");
-          f.setVisibility(View.GONE);
-        }
-      });
     }
   }
 

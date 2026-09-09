@@ -406,6 +406,42 @@ public class Keyboard2View extends View
     }
   }
 
+  /** Height of the area at the bottom of the screen that must stay clear of
+      the keys for the home gesture. The insets given to the IME window count
+      the whole navigation bar frame (which hosts the system's keyboard
+      buttons) as gesture area, so the display-level metrics are consulted:
+      they describe what a regular full-screen window would get. */
+  int gesture_area_height(WindowInsets wi)
+  {
+    int window_gestures = wi.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom;
+    int gestures = window_gestures;
+    int display_gestures = -1;
+    if (VERSION.SDK_INT >= 30)
+    {
+      WindowManager wm =
+        (WindowManager)getContext().getSystemService(Context.WINDOW_SERVICE);
+      if (wm != null)
+      {
+        WindowInsets display_insets = wm.getMaximumWindowMetrics().getWindowInsets();
+        display_gestures = display_insets.getInsets(
+            WindowInsets.Type.mandatorySystemGestures()
+            | WindowInsets.Type.navigationBars()).bottom;
+        if (display_gestures > 0 && display_gestures < gestures)
+          gestures = display_gestures;
+      }
+    }
+    // Gesture navigation reserves 32dp on most devices; never keep more than
+    // that when the window insets say otherwise.
+    int fallback = (int)(32 * getResources().getDisplayMetrics().density);
+    if (gestures > fallback)
+      gestures = fallback;
+    Logs.debug("Keyboard2View.gesture_area_height window=" + window_gestures
+        + " display=" + display_gestures + " fallback=" + fallback
+        + " navigationBars=" + wi.getInsets(WindowInsets.Type.navigationBars()).bottom
+        + " -> " + gestures);
+    return gestures;
+  }
+
   @Override
   public WindowInsets onApplyWindowInsets(WindowInsets wi)
   {
@@ -426,15 +462,8 @@ public class Keyboard2View extends View
     if (_config.hide_navigation_bar
         && Keyboard2.is_gesture_navigation(getContext()))
     {
-      int gestures = wi.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom;
+      int gestures = gesture_area_height(wi);
       int cutout = wi.getInsets(WindowInsets.Type.displayCutout()).bottom;
-      Logs.debug("Keyboard2View.onApplyWindowInsets navigation bar hidden:"
-          + " systemBars=" + insets.bottom
-          + " navigationBars=" + wi.getInsets(WindowInsets.Type.navigationBars()).bottom
-          + " mandatorySystemGestures=" + gestures
-          + " systemGestures=" + wi.getInsets(WindowInsets.Type.systemGestures()).bottom
-          + " tappableElement=" + wi.getInsets(WindowInsets.Type.tappableElement()).bottom
-          + " displayCutout=" + cutout);
       bottom = Math.min(bottom, Math.max(gestures, cutout));
     }
     Logs.debug_insets(_insets_left, _insets_right, _insets_bottom,
