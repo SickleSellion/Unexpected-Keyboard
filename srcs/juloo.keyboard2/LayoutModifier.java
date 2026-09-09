@@ -63,6 +63,14 @@ public final class LayoutModifier
           return add_suggestions_to_space_bar(k);
         }
       });
+    // Swipe typing switch on the shift key
+    if (globalConfig.glide_typing)
+      kw = kw.mapKeys(new KeyboardData.MapKey() {
+        public KeyboardData.Key apply(KeyboardData.Key k)
+        {
+          return add_glide_toggle_to_shift(k);
+        }
+      });
     // Split the layout in landscape orientation
     if (globalConfig.split_layout)
       kw = LayoutLandscapeModifier.transform_to_landscape(kw);
@@ -180,6 +188,15 @@ public final class LayoutModifier
       .withKeyValue(1, KeyValue.getKeyByName("complete_third_space"))
       .withKeyValue(7, KeyValue.getKeyByName("complete_first_space"))
       .withKeyValue(2, KeyValue.getKeyByName("complete_second_space"));
+  }
+
+  /** Swipe typing is switched on and off by swiping up on the shift key. */
+  static KeyboardData.Key add_glide_toggle_to_shift(KeyboardData.Key k)
+  {
+    KeyValue center = k.keys[0];
+    if (center == null || !center.equals(KeyValue.SHIFT))
+      return k;
+    return k.withKeyValue(7, KeyValue.getKeyByName("toggle_glide"));
   }
 
   static KeyValue modify_key(KeyValue orig)

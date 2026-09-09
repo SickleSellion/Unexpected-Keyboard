@@ -26,6 +26,7 @@ public final class KeyValue implements Comparable<KeyValue>
     SWITCH_VOICE_TYPING_CHOOSER,
     HIDE_SELF,
     CHANGE_DICTIONARY,
+    TOGGLE_GLIDE,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -684,6 +685,7 @@ public final class KeyValue implements Comparable<KeyValue>
       case "complete_second_space": return statefulKey(Stateful.Complete_second_space);
       case "complete_third_space": return statefulKey(Stateful.Complete_third_space);
       case "hide_self": return eventKey("⊻", Event.HIDE_SELF, FLAG_SMALLER_FONT);
+      case "toggle_glide": return eventKey("swipe", Event.TOGGLE_GLIDE, FLAG_SMALLER_FONT);
       case "change_dictionary": return eventKey(0xE01D, Event.CHANGE_DICTIONARY, 0);
 
       /* Key events */

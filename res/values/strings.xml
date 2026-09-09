@@ -47,6 +47,8 @@
     <string name="pref_hide_empty_suggestion_bar_title">Hide the suggestion bar when it is empty</string>
     <string name="pref_hide_empty_suggestion_bar_summary">The bar above the keyboard, which otherwise shows the language name or a hint to install a dictionary, appears only while there are suggestions</string>
     <string name="pref_category_typing">Typing</string>
+    <string name="pref_glide_typing_title">Swipe typing switch on the shift key</string>
+    <string name="pref_glide_typing_summary">Swipe up on the shift key to switch swipe typing on and off. While it is on, sliding over the letters of a word types it; taps still type single letters, and the corner symbols of the letter keys are off</string>
     <string name="pref_key_preview_title">Show the pressed symbol above the key</string>
     <string name="pref_key_preview_summary">A bubble shows what will be typed, including the corner symbol selected by a swipe</string>
     <string name="pref_swipe_dist_title">Swiping distance</string>

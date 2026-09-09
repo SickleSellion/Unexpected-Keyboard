@@ -99,6 +99,12 @@ public final class Config
   /** Put the suggestions on the corners of the space bar, see
       [LayoutModifier.add_suggestions_to_space_bar]. */
   public boolean space_bar_swipe_suggestions;
+  /** Swipe typing: whether the feature is available, which adds a switch to
+      the shift key. See [GlideDecoder]. */
+  public boolean glide_typing;
+  /** Swipe typing: whether it is switched on. Toggled from the keyboard, see
+      [set_glide_mode]. */
+  public boolean glide_mode;
   public boolean double_space_period;
   public boolean physical_keyboard_hide;
 
@@ -234,6 +240,8 @@ public final class Config
     clipboard_history_duration = Integer.parseInt(_prefs.getString("clipboard_history_duration", "5"));
     space_bar_auto_complete = _prefs.getBoolean("space_bar_auto_complete", false);
     space_bar_swipe_suggestions = _prefs.getBoolean("space_bar_swipe_suggestions", true);
+    glide_typing = _prefs.getBoolean("glide_typing", true);
+    glide_mode = _prefs.getBoolean("glide_mode", false);
     double_space_period = _prefs.getBoolean("double_space_period", false);
     physical_keyboard_hide = _prefs.getString("physical_keyboard_behavior", "hide").equals("hide");
     float screen_width_dp = dm.widthPixels / dm.density;
@@ -355,6 +363,14 @@ public final class Config
     }
   }
 
+  /** Switch swipe typing on or off. Persisted so that the choice survives a
+      restart; the preference change listener refreshes the keyboard. */
+  public void set_glide_mode(boolean on)
+  {
+    glide_mode = on;
+    _prefs.edit().putBoolean("glide_mode", on).apply();
+  }
+
   private static Config _globalConfig = null;
 
   public static void initGlobalConfig(SharedPreferences prefs, Resources res,
@@ -381,6 +397,9 @@ public final class Config
     public void key_up(KeyValue value, Pointers.Modifiers mods);
     public void mods_changed(Pointers.Modifiers mods);
     public void suggestion_entered(String text);
+    /** A stroke over the letter keys was decoded into [words], best first.
+        See [GlideDecoder]. */
+    public void glide_typed(java.util.List<String> words, Pointers.Modifiers mods);
   }
 
   /** Config migrations. */

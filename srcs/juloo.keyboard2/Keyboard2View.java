@@ -5,6 +5,7 @@ import android.content.ContextWrapper;
 import android.graphics.Canvas;
 import android.graphics.Insets;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.inputmethodservice.InputMethodService;
@@ -19,6 +20,7 @@ import android.view.WindowManager;
 import android.view.WindowMetrics;
 import java.util.Arrays;
 import java.util.List;
+import juloo.cdict.Cdict;
 
 public class Keyboard2View extends View
   implements View.OnTouchListener, Pointers.IPointerEventHandler
@@ -63,6 +65,21 @@ public class Keyboard2View extends View
   private int _preview_pointer = -1;
   private KeyboardData.Key _preview_key = null;
   private static RectF _tmpKeyRect = new RectF();
+
+  /** Swipe typing, see [glide_move]. The touch that may become or is a
+      stroke: [-1] when none. */
+  private int _glide_pointer = -1;
+  private boolean _glide_active = false;
+  private KeyboardData.Key _glide_down_key = null;
+  private float _glide_down_x = 0f;
+  private float _glide_down_y = 0f;
+  private float[] _glide_points = new float[512];
+  /** Number of floats used in [_glide_points], two per point. */
+  private int _glide_n = 0;
+  private final Path _glide_path = new Path();
+  private Paint _glide_paint = null;
+  /** Letter keys of the current layout, built when needed. */
+  private GlideDecoder.KeyMap _glide_keys = null;
 
   enum Vertical
   {
@@ -126,6 +143,8 @@ public class Keyboard2View extends View
   {
     _mods = Pointers.Modifiers.EMPTY;
     _pointers.clear();
+    _glide_keys = null;
+    glide_reset();
     requestLayout();
     invalidate();
   }
@@ -216,7 +235,14 @@ public class Keyboard2View extends View
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_POINTER_UP:
         int up_id = event.getPointerId(event.getActionIndex());
-        _pointers.onTouchUp(up_id);
+        if (up_id == _glide_pointer && _glide_active)
+          glide_end();
+        else
+        {
+          _pointers.onTouchUp(up_id);
+          if (up_id == _glide_pointer)
+            glide_reset();
+        }
         if (up_id == _preview_pointer)
           preview_end();
         break;
@@ -231,21 +257,200 @@ public class Keyboard2View extends View
           int down_id = event.getPointerId(p);
           _pointers.onTouchDown(tx, ty, down_id, key);
           preview_follow(down_id, key);
+          if (_config.glide_mode && _glide_pointer == -1 && is_letter_key(key))
+          {
+            // Might become a swipe typing stroke, see [glide_move].
+            _glide_pointer = down_id;
+            _glide_down_key = key;
+            _glide_down_x = tx;
+            _glide_down_y = ty;
+          }
         }
         break;
       case MotionEvent.ACTION_MOVE:
         for (p = 0; p < event.getPointerCount(); p++)
-          _pointers.onTouchMove(event.getX(p), event.getY(p), event.getPointerId(p));
+        {
+          int id = event.getPointerId(p);
+          if (id == _glide_pointer)
+            glide_move(event.getX(p), event.getY(p));
+          else
+            _pointers.onTouchMove(event.getX(p), event.getY(p), id);
+        }
         preview_refresh();
         break;
       case MotionEvent.ACTION_CANCEL:
         _pointers.onTouchCancel();
         preview_end();
+        glide_reset();
         break;
       default:
         return (false);
     }
     return (true);
+  }
+
+  // Swipe typing
+
+  /** In swipe typing mode ([Config.glide_mode]), a touch that goes down on a
+      letter key and travels onto other keys is a stroke spelling a word, see
+      [GlideDecoder]. It stops acting on its key when the stroke starts; a
+      touch that stays on its key types the letter as usual. The corner
+      symbols of the letter keys are not reachable in this mode. */
+  static boolean is_letter_key(KeyboardData.Key k)
+  {
+    KeyValue kv = k.keys[0];
+    return kv != null && kv.getKind() == KeyValue.Kind.Char
+      && Character.isLetter(kv.getChar());
+  }
+
+  private void glide_move(float x, float y)
+  {
+    if (!_glide_active)
+    {
+      float d = Math.abs(x - _glide_down_x) + Math.abs(y - _glide_down_y);
+      if (d < _keyWidth * 0.7f)
+        return;
+      KeyboardData.Key k = getKeyAtPosition(x, y);
+      if (k == null || k == _glide_down_key)
+        return;
+      // The touch becomes a stroke and no longer types its key.
+      _pointers.cancelPointer(_glide_pointer);
+      if (_glide_pointer == _preview_pointer)
+        preview_end();
+      _glide_active = true;
+      _glide_n = 0;
+      glide_add_point(_glide_down_x, _glide_down_y);
+    }
+    glide_add_point(x, y);
+    invalidate();
+  }
+
+  private void glide_add_point(float x, float y)
+  {
+    if (_glide_n + 2 > _glide_points.length)
+      _glide_points = Arrays.copyOf(_glide_points, _glide_points.length * 2);
+    _glide_points[_glide_n++] = x;
+    _glide_points[_glide_n++] = y;
+  }
+
+  /** The stroke ended: type what it spells. */
+  private void glide_end()
+  {
+    if (_glide_n >= 4)
+    {
+      Pointers.Modifiers mods = _pointers.getModifiers();
+      List<String> words = glide_decode();
+      if (!words.isEmpty())
+      {
+        _config.handler.glide_typed(words, mods);
+        vibrate(VibratorCompat.Feedback.TAP);
+      }
+      _pointers.clearLatchedModifiers();
+    }
+    glide_reset();
+    invalidate();
+  }
+
+  private void glide_reset()
+  {
+    _glide_pointer = -1;
+    _glide_active = false;
+    _glide_down_key = null;
+    _glide_n = 0;
+  }
+
+  private List<String> glide_decode()
+  {
+    Cdict dict = _config.current_dictionary;
+    if (dict == null || _keyboard == null)
+      return new java.util.ArrayList<String>();
+    if (_glide_keys == null)
+      _glide_keys = build_glide_keys();
+    return GlideDecoder.decode(new CdictDictionary(dict), _glide_keys,
+        _glide_points, _glide_n / 2);
+  }
+
+  /** Centres of the letter keys, in the coordinates of this view. */
+  private GlideDecoder.KeyMap build_glide_keys()
+  {
+    StringBuilder letters = new StringBuilder();
+    java.util.ArrayList<Float> xs = new java.util.ArrayList<Float>();
+    java.util.ArrayList<Float> ys = new java.util.ArrayList<Float>();
+    float key_h = _tc.row_height - _tc.vertical_margin;
+    float y = _tc.margin_top;
+    for (KeyboardData.Row row : _keyboard.rows)
+    {
+      y += row.shift * _tc.row_height;
+      float x = _marginLeft + _tc.margin_left;
+      float keyH = row.height * _tc.row_height - _tc.vertical_margin;
+      for (KeyboardData.Key k : row.keys)
+      {
+        x += k.shift * _keyWidth;
+        float keyW = _keyWidth * k.width - _tc.horizontal_margin;
+        if (is_letter_key(k))
+        {
+          letters.append(Character.toLowerCase(k.keys[0].getChar()));
+          xs.add(x + keyW / 2f);
+          ys.add(y + keyH / 2f);
+          key_h = keyH;
+        }
+        x += _keyWidth * k.width;
+      }
+      y += row.height * _tc.row_height;
+    }
+    int n = letters.length();
+    char[] ls = new char[n];
+    float[] xa = new float[n];
+    float[] ya = new float[n];
+    for (int i = 0; i < n; i++)
+    {
+      ls[i] = letters.charAt(i);
+      xa[i] = xs.get(i);
+      ya[i] = ys.get(i);
+    }
+    return new GlideDecoder.KeyMap(ls, xa, ya, _keyWidth, key_h);
+  }
+
+  private void draw_glide(Canvas canvas)
+  {
+    if (!_glide_active || _glide_n < 4)
+      return;
+    if (_glide_paint == null)
+    {
+      _glide_paint = new Paint();
+      _glide_paint.setAntiAlias(true);
+      _glide_paint.setStyle(Paint.Style.STROKE);
+      _glide_paint.setStrokeCap(Paint.Cap.ROUND);
+      _glide_paint.setStrokeJoin(Paint.Join.ROUND);
+    }
+    _glide_paint.setColor(_theme.colorKeyActivated);
+    _glide_paint.setAlpha(0xA0);
+    _glide_paint.setStrokeWidth(_keyWidth * 0.18f);
+    _glide_path.reset();
+    _glide_path.moveTo(_glide_points[0], _glide_points[1]);
+    for (int i = 2; i < _glide_n; i += 2)
+      _glide_path.lineTo(_glide_points[i], _glide_points[i + 1]);
+    canvas.drawPath(_glide_path, _glide_paint);
+  }
+
+  /** [GlideDecoder.Dictionary] over the current dictionary. */
+  static final class CdictDictionary implements GlideDecoder.Dictionary
+  {
+    final Cdict _dict;
+
+    CdictDictionary(Cdict d) { _dict = d; }
+
+    public boolean has_prefix(String prefix)
+    {
+      Cdict.Result r = _dict.find(prefix);
+      return r.found || _dict.suffixes(r, 1).length > 0;
+    }
+
+    public int word_freq(String word)
+    {
+      Cdict.Result r = _dict.find(word);
+      return r.found ? _dict.freq(r.index) : -1;
+    }
   }
 
   /** Touches slightly outside the keys are attributed to the nearest key
@@ -367,6 +572,7 @@ public class Keyboard2View extends View
     _marginBottom = _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
     _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
+    _glide_keys = null;
     // Compute the size of labels based on the width or the height of keys. The
     // margin around keys is taken into account. Keys normal aspect ratio is
     // assumed to be 3/2 for a 10 columns layout. It's generally more, the
@@ -536,6 +742,7 @@ public class Keyboard2View extends View
       }
       y += row.height * _tc.row_height;
     }
+    draw_glide(canvas);
   }
 
   @Override
@@ -596,6 +803,10 @@ public class Keyboard2View extends View
       }
       return _theme.pressedColor;
     }
+    // The swipe typing switch shows whether the mode is on.
+    if (_config.glide_mode && k.getKind() == KeyValue.Kind.Event
+        && k.getEvent() == KeyValue.Event.TOGGLE_GLIDE)
+      return _theme.activatedColor;
     // Custom color for the symbols in the corners of the keys.
     if (sublabel && _config.corner_label_color != 0
         && !k.hasFlagsAny(KeyValue.FLAG_GREYED))

@@ -37,6 +37,12 @@ public final class KeyEventHandler
   /** Remember the action that was handled. This is used by autocorrect. */
   LastAction _last_action = null;
   LastAction _next_last_action = null;
+  /** Length of the text typed by the last stroke (word and space), the other
+      words it could have been, and whether it was capitalised. Valid while
+      [_last_action] is [GLIDE]. */
+  int _glide_word_len = 0;
+  java.util.List<String> _glide_alternatives = null;
+  boolean _glide_capitalised = false;
 
   public KeyEventHandler(IReceiver recv, Suggestions sg)
   {
@@ -65,6 +71,8 @@ public final class KeyEventHandler
       && conf.editor_config.caps_mode != 0;
     _last_action = null;
     _autocorrect_rejected = null;
+    _glide_word_len = 0;
+    _glide_alternatives = null;
   }
 
   /** Selection has been updated. */
@@ -142,6 +150,19 @@ public final class KeyEventHandler
   @Override
   public void suggestion_entered(String text)
   {
+    if (_last_action == LastAction.GLIDE && _glide_word_len > 0)
+    {
+      // Replace the word typed by the last stroke, keeping its space.
+      String repl = text.endsWith(" ") ? text : text + " ";
+      if (_glide_capitalised)
+        repl = capitalise(repl);
+      replace_surrounding_text(_glide_word_len, 0, repl);
+      _glide_word_len = repl.length();
+      _next_last_action = LastAction.GLIDE;
+      _last_action = LastAction.GLIDE;
+      show_glide_alternatives();
+      return;
+    }
     String old = _typedword.get();
     int cur_rel = _typedword.cursor_relative();
     replace_surrounding_text(old.length() + cur_rel, -cur_rel, text);
@@ -159,7 +180,52 @@ public final class KeyEventHandler
   @Override
   public void currently_typed_word(String word)
   {
+    // Keep offering the other readings of the last stroke until something
+    // else is typed.
+    if (word.length() == 0 && _last_action == LastAction.GLIDE
+        && _glide_alternatives != null)
+    {
+      show_glide_alternatives();
+      return;
+    }
     _suggestions.currently_typed_word(word);
+  }
+
+  /** A stroke over the letter keys was decoded, [words] best first. Type the
+      best one followed by a space and offer the others as suggestions; while
+      they are shown, choosing one replaces the typed word. */
+  @Override
+  public void glide_typed(java.util.List<String> words, Pointers.Modifiers mods)
+  {
+    if (words.isEmpty())
+      return;
+    _glide_capitalised = mods.has(KeyValue.Modifier.SHIFT);
+    String word = words.get(0) + " ";
+    if (_glide_capitalised)
+      word = capitalise(word);
+    send_text(word);
+    _glide_word_len = word.length();
+    _glide_alternatives = words.subList(1, words.size());
+    _last_action = LastAction.GLIDE;
+    show_glide_alternatives();
+  }
+
+  void show_glide_alternatives()
+  {
+    java.util.List<String> alts = _glide_alternatives;
+    int n = Math.min(alts.size(), Suggestions.MAX_COUNT);
+    for (int i = 0; i < Suggestions.MAX_COUNT; i++)
+      _suggestions.suggestions[i] = (i < n) ? alts.get(i) : null;
+    _suggestions.count = n;
+    _suggestions.emoji_suggestion = null;
+    _recv.set_suggestions(_suggestions);
+  }
+
+  static String capitalise(String s)
+  {
+    if (s.length() == 0)
+      return s;
+    return Character.toUpperCase(s.charAt(0)) + s.substring(1);
   }
 
   public void dictionary_changed()
@@ -683,6 +749,8 @@ public final class KeyEventHandler
   public static enum LastAction
   {
     SUGGESTION_ENTERED,
+    /** A word typed by a stroke over the keys, see [glide_typed]. */
+    GLIDE,
     /** A space typed with the space bar. */
     SPACE,
     OTHER

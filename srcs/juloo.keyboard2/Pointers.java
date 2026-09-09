@@ -200,6 +200,26 @@ public final class Pointers implements Handler.Callback
     }
   }
 
+  /** Forget a pointer without releasing its key: used when a touch turns
+      into a swipe typing stroke. The modifiers it held are left as they
+      are. */
+  public void cancelPointer(int pointerId)
+  {
+    Pointer ptr = getPtr(pointerId);
+    if (ptr == null)
+      return;
+    stopLongPress(ptr);
+    removePtr(ptr);
+    _handler.onPointerFlagsChanged(false);
+  }
+
+  /** Clear the latched modifiers, as releasing a key does. */
+  public void clearLatchedModifiers()
+  {
+    clearLatched();
+    _handler.onPointerFlagsChanged(false);
+  }
+
   public void onTouchCancel()
   {
     clear();

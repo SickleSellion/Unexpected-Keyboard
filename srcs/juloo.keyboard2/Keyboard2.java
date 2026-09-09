@@ -581,6 +581,9 @@ public class Keyboard2 extends InputMethodService
     {
       switch (ev)
       {
+        case TOGGLE_GLIDE:
+          _config.set_glide_mode(!_config.glide_mode);
+          break;
         case CONFIG:
           start_activity(SettingsActivity.class);
           break;
