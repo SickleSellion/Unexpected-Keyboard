@@ -177,6 +177,19 @@ public class Keyboard2View extends View
           KeyValue.SELECTION_MODE, selection_state, true);
   }
 
+  /** Whether the cursor swipes of the space bar shrink the selection instead
+      of extending it. The "deselect" corner of the space bar is lit. */
+  boolean _deselect_mode = false;
+
+  /** Called from [KeyEventHandler]. */
+  public void set_deselect_mode(boolean on)
+  {
+    if (on == _deselect_mode)
+      return;
+    _deselect_mode = on;
+    invalidate();
+  }
+
   public KeyValue modifyKey(KeyValue k, Pointers.Modifiers mods)
   {
     return KeyModifier.modify(k, mods);
@@ -810,6 +823,10 @@ public class Keyboard2View extends View
     // background and can be invisible on a plain key).
     if (_config.glide_mode && k.getKind() == KeyValue.Kind.Event
         && k.getEvent() == KeyValue.Event.TOGGLE_GLIDE)
+      return _theme.colorKeyActivated;
+    // The deselect switch on the space bar lights up the same way.
+    if (_deselect_mode && k.getKind() == KeyValue.Kind.Stateful
+        && k.getStateful() == KeyValue.Stateful.Complete_first_space)
       return _theme.colorKeyActivated;
     // Custom color for the symbols in the corners of the keys.
     if (sublabel && _config.corner_label_color != 0

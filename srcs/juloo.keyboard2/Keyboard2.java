@@ -400,7 +400,7 @@ public class Keyboard2 extends InputMethodService
   }
 
   /** Whether text is selected in the editor. The space bar's top corner
-      offers to deselect it, see [provide_stateful_key_symbol]. */
+      then switches deselect mode, see [provide_stateful_key_symbol]. */
   boolean _selection_ongoing = false;
 
   void set_selection_ongoing(boolean ongoing)
@@ -711,6 +711,11 @@ public class Keyboard2 extends InputMethodService
       _keyboard_layout_view.set_selection_state(selection_is_ongoing);
     }
 
+    public void deselect_mode_changed(boolean on)
+    {
+      _keyboard_layout_view.set_deselect_mode(on);
+    }
+
     public void on_autocorrection()
     {
       _keyboard_layout_view.feedback(VibratorCompat.Feedback.CORRECTION);
@@ -738,7 +743,8 @@ public class Keyboard2 extends InputMethodService
       {
         case Complete_first: return _suggestions.suggestions[0];
         case Complete_first_space:
-          // On the space bar: while text is selected, swiping up deselects
+          // On the space bar: while text is selected, swiping up switches
+          // deselect mode
           if (_selection_ongoing)
             return getString(R.string.key_deselect);
           return _suggestions.suggestions[0];
