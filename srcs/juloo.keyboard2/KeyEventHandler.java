@@ -433,6 +433,14 @@ public final class KeyEventHandler
       case Complete_second_space:
       case Complete_third_space:
       {
+        // On the space bar: while text is selected, swiping up deselects it
+        // (the cursor slides of the space bar only ever extend a selection).
+        if (st == KeyValue.Stateful.Complete_first_space
+            && _typedword.is_selection_not_empty())
+        {
+          cancel_selection();
+          break;
+        }
         String s = st.toString();
         if (s.length() > 0)
           suggestion_entered(s + " ");
