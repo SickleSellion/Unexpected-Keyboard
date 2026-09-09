@@ -167,18 +167,19 @@ public final class LayoutModifier
   /** Put the current suggestions on the corners of the space bar so that a
       swipe enters them without leaving the keys: up for the first suggestion
       (the middle of the candidates bar), up-left for the third (left in the
-      bar) and up-right for the second (right in the bar). The corner labels
-      show the words, so the choice is visible before swiping. Replaces what
-      the layout had on those corners, usually the layout switching key. */
+      bar) and up-right for the second (right in the bar), each followed by a
+      space as the key would type. The corner labels show the words, so the
+      choice is visible before swiping. Replaces what the layout had on those
+      corners, usually the layout switching key. */
   static KeyboardData.Key add_suggestions_to_space_bar(KeyboardData.Key k)
   {
     KeyValue center = k.keys[0];
     if (center == null || !center.equals(SPACE_KEY))
       return k;
     return k
-      .withKeyValue(1, KeyValue.getKeyByName("complete_third"))
-      .withKeyValue(7, KeyValue.getKeyByName("complete_first"))
-      .withKeyValue(2, KeyValue.getKeyByName("complete_second"));
+      .withKeyValue(1, KeyValue.getKeyByName("complete_third_space"))
+      .withKeyValue(7, KeyValue.getKeyByName("complete_first_space"))
+      .withKeyValue(2, KeyValue.getKeyByName("complete_second_space"));
   }
 
   static KeyValue modify_key(KeyValue orig)

@@ -717,9 +717,12 @@ public class Keyboard2 extends InputMethodService
     {
       switch (q)
       {
-        case Complete_first: return _suggestions.suggestions[0];
-        case Complete_second: return _suggestions.suggestions[1];
-        case Complete_third: return _suggestions.suggestions[2];
+        case Complete_first:
+        case Complete_first_space: return _suggestions.suggestions[0];
+        case Complete_second:
+        case Complete_second_space: return _suggestions.suggestions[1];
+        case Complete_third:
+        case Complete_third_space: return _suggestions.suggestions[2];
         case Complete_emoji: return _suggestions.emoji_suggestion;
       }
       return "";

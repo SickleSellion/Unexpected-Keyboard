@@ -680,6 +680,9 @@ public final class KeyValue implements Comparable<KeyValue>
       case "complete_second": return statefulKey(Stateful.Complete_second);
       case "complete_third": return statefulKey(Stateful.Complete_third);
       case "complete_emoji": return statefulKey(Stateful.Complete_emoji);
+      case "complete_first_space": return statefulKey(Stateful.Complete_first_space);
+      case "complete_second_space": return statefulKey(Stateful.Complete_second_space);
+      case "complete_third_space": return statefulKey(Stateful.Complete_third_space);
       case "hide_self": return eventKey("⊻", Event.HIDE_SELF, FLAG_SMALLER_FONT);
       case "change_dictionary": return eventKey(0xE01D, Event.CHANGE_DICTIONARY, 0);
 
@@ -987,7 +990,11 @@ public final class KeyValue implements Comparable<KeyValue>
     Complete_first,
     Complete_second,
     Complete_third,
-    Complete_emoji;
+    Complete_emoji,
+    /** Same suggestions, followed by a space: used on the space bar. */
+    Complete_first_space,
+    Complete_second_space,
+    Complete_third_space;
 
     @Override
     public String toString()

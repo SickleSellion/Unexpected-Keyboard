@@ -361,6 +361,15 @@ public final class KeyEventHandler
           suggestion_entered(s);
         break;
       }
+      case Complete_first_space:
+      case Complete_second_space:
+      case Complete_third_space:
+      {
+        String s = st.toString();
+        if (s.length() > 0)
+          suggestion_entered(s + " ");
+        break;
+      }
     }
   }
 
