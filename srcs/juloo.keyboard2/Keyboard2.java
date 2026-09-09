@@ -211,18 +211,36 @@ public class Keyboard2 extends InputMethodService
     refresh_candidates_view();
   }
 
+  /** Whether the candidates view may be shown for the current editor and
+      layout. Its actual visibility also depends on
+      [Config.hide_empty_suggestion_bar], see
+      [update_candidates_view_visibility()]. */
+  private boolean _candidates_view_allowed = false;
+
   private void refresh_candidates_view()
   {
-    boolean should_show =
+    _candidates_view_allowed =
       _config.suggestions_enabled
       && _config.editor_config.should_show_candidates_view
       && !_config.split_layout;
-    if (should_show)
+    if (_candidates_view_allowed)
     {
       _candidates_view.refresh_config(_config);
       _keyeventhandler.dictionary_changed();
     }
-    _candidates_view.setVisibility(should_show ? View.VISIBLE : View.GONE);
+    update_candidates_view_visibility(_suggestions);
+  }
+
+  /** Show or hide the candidates bar. When [hide_empty_suggestion_bar] is
+      set, the bar (which otherwise shows the language name or the hint to
+      install a dictionary) takes space only while there is something to
+      suggest. */
+  private void update_candidates_view_visibility(Suggestions s)
+  {
+    boolean visible = _candidates_view_allowed
+      && (!_config.hide_empty_suggestion_bar
+          || s.count > 0 || s.emoji_suggestion != null);
+    _candidates_view.setVisibility(visible ? View.VISIBLE : View.GONE);
   }
 
   /** Might re-create the keyboard view. [_keyboard_layout_view.setKeyboard()] and
@@ -572,6 +590,7 @@ public class Keyboard2 extends InputMethodService
     public void set_suggestions(Suggestions suggestions)
     {
       _candidates_view.set_candidates(suggestions);
+      update_candidates_view_visibility(suggestions);
     }
 
     public String provide_stateful_key_symbol(KeyValue.Stateful q)

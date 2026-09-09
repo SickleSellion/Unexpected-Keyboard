@@ -15,6 +15,7 @@
   </PreferenceCategory>
   <PreferenceCategory android:title="@string/pref_category_suggestions">
     <CheckBoxPreference android:key="suggestions" android:title="@string/pref_suggestions_title" android:summary="@string/pref_suggestions_summary" android:defaultValue="true"/>
+    <CheckBoxPreference android:key="hide_empty_suggestion_bar" android:title="@string/pref_hide_empty_suggestion_bar_title" android:summary="@string/pref_hide_empty_suggestion_bar_summary" android:defaultValue="true" android:dependency="suggestions"/>
     <CheckBoxPreference android:key="space_bar_auto_complete" android:title="@string/pref_space_bar_auto_complete_title" android:summary="@string/pref_space_bar_auto_complete_summary" android:defaultValue="false"/>
   </PreferenceCategory>
   <PreferenceCategory android:title="@string/pref_category_typing">
