@@ -5,6 +5,8 @@ import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+import android.preference.PreferenceGroup;
+import android.preference.Preference;
 import android.preference.PreferenceManager;
 
 public class SettingsActivity extends PreferenceActivity
@@ -26,6 +28,7 @@ public class SettingsActivity extends PreferenceActivity
     }
     catch (Exception _e) { fallbackEncrypted(); return; }
     addPreferencesFromResource(R.xml.settings);
+    align_rows(getPreferenceScreen());
 
     boolean foldableDevice = FoldStateTracker.isFoldableDevice(this);
     findPreference("margin_bottom_portrait_unfolded").setEnabled(foldableDevice);
@@ -34,6 +37,20 @@ public class SettingsActivity extends PreferenceActivity
     findPreference("horizontal_margin_landscape_unfolded").setEnabled(foldableDevice);
     findPreference("keyboard_height_unfolded").setEnabled(foldableDevice);
     findPreference("keyboard_height_landscape_unfolded").setEnabled(foldableDevice);
+  }
+
+  /** Some rows reserve room for an icon and some do not, which gives them
+      different left edges. None has an icon: reserve the room nowhere. */
+  static void align_rows(Preference p)
+  {
+    if (Build.VERSION.SDK_INT >= 26)
+      p.setIconSpaceReserved(false);
+    if (p instanceof PreferenceGroup)
+    {
+      PreferenceGroup g = (PreferenceGroup)p;
+      for (int i = 0; i < g.getPreferenceCount(); i++)
+        align_rows(g.getPreference(i));
+    }
   }
 
   void fallbackEncrypted()
