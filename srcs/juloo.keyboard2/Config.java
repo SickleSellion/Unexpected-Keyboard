@@ -96,6 +96,9 @@ public final class Config
   public boolean clipboard_history_enabled;
   public int clipboard_history_duration;
   public boolean space_bar_auto_complete;
+  /** Put the suggestions on the corners of the space bar, see
+      [LayoutModifier.add_suggestions_to_space_bar]. */
+  public boolean space_bar_swipe_suggestions;
   public boolean double_space_period;
   public boolean physical_keyboard_hide;
 
@@ -230,6 +233,7 @@ public final class Config
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     clipboard_history_duration = Integer.parseInt(_prefs.getString("clipboard_history_duration", "5"));
     space_bar_auto_complete = _prefs.getBoolean("space_bar_auto_complete", false);
+    space_bar_swipe_suggestions = _prefs.getBoolean("space_bar_swipe_suggestions", true);
     double_space_period = _prefs.getBoolean("double_space_period", false);
     physical_keyboard_hide = _prefs.getString("physical_keyboard_behavior", "hide").equals("hide");
     float screen_width_dp = dm.widthPixels / dm.density;

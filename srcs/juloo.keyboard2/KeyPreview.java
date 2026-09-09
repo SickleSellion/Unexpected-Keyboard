@@ -104,6 +104,7 @@ public final class KeyPreview extends View
       case Macro:
       case Hangul_initial:
       case Hangul_medial:
+      case Stateful: // Suggestions on keys
         return kv.getString().length() > 0;
       default:
         return false;

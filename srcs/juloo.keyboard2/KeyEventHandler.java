@@ -353,8 +353,14 @@ public final class KeyEventHandler
       case Complete_second:
       case Complete_third:
       case Complete_emoji:
-        suggestion_entered(st.toString());
+      {
+        String s = st.toString();
+        // Nothing to enter when there is no suggestion; entering the empty
+        // string would delete the word being typed.
+        if (s.length() > 0)
+          suggestion_entered(s);
         break;
+      }
     }
   }
 
