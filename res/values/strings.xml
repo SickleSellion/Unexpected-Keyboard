@@ -63,6 +63,8 @@
     <string name="pref_vibrate_duration_title">Vibration intensity</string>
     <string name="pref_vibrate_distinct_title">Distinct vibration for corner symbols and corrections</string>
     <string name="pref_vibrate_distinct_summary">Two pulses when swiping to a corner symbol, a longer one when a word is autocorrected</string>
+    <string name="pref_app_window_height_title">Height of app windows</string>
+    <string name="pref_app_window_height_summary">An app opened from a key takes this share of the screen height, when the device supports pop-up windows (%s%%)</string>
     <string name="pref_number_entry_title">Layout when typing numbers, dates, and phone numbers</string>
     <string name="pref_number_entry_layout_pin">PIN Entry</string>
     <string name="pref_number_entry_layout_number">Number pane</string>

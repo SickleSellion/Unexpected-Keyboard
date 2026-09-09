@@ -42,6 +42,9 @@ public final class Config
       key, as a ratio of the half key size. [0] keeps them in the corners.
       From the 'corner_label_inset' option. */
   public float corner_label_inset;
+  /** Height of the window in which a key opens another application, in
+      percent of the screen height. See [AppLauncher]. */
+  public int app_window_height;
 
   // From preferences
   /** [null] represent the [system] layout. */
@@ -210,6 +213,7 @@ public final class Config
     sublabelTextSize = _prefs.getFloat("corner_label_size", 0.22f);
     corner_label_color = parse_color_pref(_prefs.getString("corner_label_color", ""));
     corner_label_inset = _prefs.getInt("corner_label_inset", 0) / 100.f;
+    app_window_height = _prefs.getInt("app_window_height", 50);
     theme = getThemeId(res, _prefs.getString("theme", ""));
     autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
     change_method_key_replacement = get_change_method_key_replacement(_prefs);
