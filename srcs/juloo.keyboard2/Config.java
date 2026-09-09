@@ -69,6 +69,9 @@ public final class Config
   public long longPressInterval;
   public boolean keyrepeat_enabled;
   public float margin_bottom;
+  /** Hide the navigation bar frame the system draws under the keyboard on
+      gesture-navigation devices and reserve only the gesture area. */
+  public boolean hide_navigation_bar;
   public int keyboard_rows_height_pixels;
   public int screenHeightPixels;
   public float horizontal_margin;
@@ -185,6 +188,7 @@ public final class Config
     longPressInterval = _prefs.getInt("longpress_interval", 65);
     keyrepeat_enabled = _prefs.getBoolean("keyrepeat_enabled", true);
     margin_bottom = get_dip_pref_oriented(dm, "margin_bottom", 7, 3);
+    hide_navigation_bar = _prefs.getBoolean("hide_navigation_bar", false);
     key_vertical_margin = get_dip_pref(dm, "key_vertical_margin", 1.5f) / 100;
     key_horizontal_margin = get_dip_pref(dm, "key_horizontal_margin", 2) / 100;
     // Label brightness is used as the alpha channel

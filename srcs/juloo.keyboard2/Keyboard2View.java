@@ -416,11 +416,25 @@ public class Keyboard2View extends View
       WindowInsets.Type.systemBars()
       | WindowInsets.Type.displayCutout();
     Insets insets = wi.getInsets(insets_types);
+    int bottom = insets.bottom;
+    // With gesture navigation, the bottom system bar inset given to the IME
+    // window is the height of the navigation bar frame that hosts the
+    // system's keyboard buttons. When that frame is hidden (see
+    // [Keyboard2.apply_navigation_bar_visibility]), only the area reserved
+    // for the home gesture has to stay clear of the keys. Gesture navigation
+    // is recognised by the absence of a tappable navigation bar.
+    if (_config.hide_navigation_bar
+        && wi.getInsets(WindowInsets.Type.tappableElement()).bottom == 0)
+    {
+      int gestures = wi.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom;
+      int cutout = wi.getInsets(WindowInsets.Type.displayCutout()).bottom;
+      bottom = Math.min(bottom, Math.max(gestures, cutout));
+    }
     Logs.debug_insets(_insets_left, _insets_right, _insets_bottom,
-        insets.left, insets.right, insets.bottom);
+        insets.left, insets.right, bottom);
     _insets_left = insets.left;
     _insets_right = insets.right;
-    _insets_bottom = insets.bottom;
+    _insets_bottom = bottom;
     return WindowInsets.CONSUMED;
   }
 

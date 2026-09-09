@@ -38,6 +38,8 @@
     <string name="pref_suggestions_summary">Enable word completion and spell checking</string>
     <string name="pref_space_bar_auto_complete_title">Autocomplete with the space bar</string>
     <string name="pref_space_bar_auto_complete_summary">Enter the best suggestion by pressing space</string>
+    <string name="pref_hide_navigation_bar_title">Hide the navigation bar under the keyboard</string>
+    <string name="pref_hide_navigation_bar_summary">With gesture navigation, removes the keyboard switch and hide buttons the system draws under the keys and moves the keyboard down, keeping only the home gesture area</string>
     <string name="bar_switch_keyboard">Switch keyboard</string>
     <string name="bar_hide_keyboard">Hide keyboard</string>
     <string name="pref_hide_empty_suggestion_bar_title">Hide the suggestion bar when it is empty</string>

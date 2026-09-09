@@ -19,6 +19,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.provider.Settings;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -304,6 +305,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void setInputView(View v)
   {
+    apply_navigation_bar_visibility();
     ViewParent parent = v.getParent();
     if (parent != null && parent instanceof ViewGroup)
       ((ViewGroup)parent).removeView(v);
@@ -406,6 +408,50 @@ public class Keyboard2 extends InputMethodService
   {
     refresh_config();
     _keyboard_layout_view.setKeyboard(current_layout());
+  }
+
+  /** Name of the view the framework adds at the bottom of the IME window on
+      devices where the IME draws the navigation bar (gesture navigation,
+      Android 12 and later). It hosts the system's keyboard switcher button
+      and, on some devices, a button that hides the keyboard. */
+  static final String NAVIGATION_BAR_FRAME_CLASS =
+    "android.inputmethodservice.navigationbar.NavigationBarFrame";
+
+  /** Hide or restore the navigation bar frame according to
+      [Config.hide_navigation_bar]. Only done with gesture navigation, where
+      the frame holds no navigation buttons; with three-button navigation the
+      frame is the user's back, home and recents buttons and is left alone.
+      [Keyboard2View] reserves only the gesture area when the frame is
+      hidden. */
+  void apply_navigation_bar_visibility()
+  {
+    Window w = getWindow().getWindow();
+    if (w == null)
+      return;
+    View decor = w.getDecorView();
+    if (!(decor instanceof ViewGroup))
+      return;
+    boolean hide = _config.hide_navigation_bar && is_gesture_navigation();
+    ViewGroup g = (ViewGroup)decor;
+    for (int i = 0; i < g.getChildCount(); i++)
+    {
+      View c = g.getChildAt(i);
+      if (NAVIGATION_BAR_FRAME_CLASS.equals(c.getClass().getName()))
+        c.setVisibility(hide ? View.GONE : View.VISIBLE);
+    }
+  }
+
+  boolean is_gesture_navigation()
+  {
+    // NAV_BAR_MODE_GESTURAL; the constant is not part of the public API.
+    return Settings.Secure.getInt(getContentResolver(), "navigation_mode", 0) == 2;
+  }
+
+  @Override
+  public void onWindowShown()
+  {
+    super.onWindowShown();
+    apply_navigation_bar_visibility();
   }
 
   @Override
