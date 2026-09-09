@@ -26,6 +26,11 @@ public final class KeyValue implements Comparable<KeyValue>
     SWITCH_VOICE_TYPING_CHOOSER,
     HIDE_SELF,
     CHANGE_DICTIONARY,
+    TOGGLE_GLIDE,
+    /** A tap on the space bar while text is selected, see
+        [Modifier.SUGGESTION_MODE]. */
+    SWITCH_SUGGESTION_MODE,
+    SWITCH_SELECTION_MODE,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -64,6 +69,10 @@ public final class KeyValue implements Comparable<KeyValue>
     BAR,
     FN,
     SELECTION_MODE,
+    /** While text is selected, after a tap on the space bar: its swipes
+        enter the suggestions instead of selecting, see
+        [KeyModifier.apply_suggestion_mode]. */
+    SUGGESTION_MODE,
   } // Last is be applied first
 
   public static enum Editing
@@ -423,9 +432,15 @@ public final class KeyValue implements Comparable<KeyValue>
       with [repeatition]. */
   public static KeyValue sliderKey(Slider s, int repeatition)
   {
-    // Casting to a short then back to a int to preserve the sign bit.
-    return new KeyValue(s, Kind.Slider, (short)repeatition & 0xFFFF,
+    return sliderKey(s, repeatition,
         FLAG_SPECIAL | FLAG_SECONDARY | FLAG_KEY_FONT);
+  }
+
+  /** [flags] are the display flags. */
+  public static KeyValue sliderKey(Slider s, int repeatition, int flags)
+  {
+    // Casting to a short then back to a int to preserve the sign bit.
+    return new KeyValue(s, Kind.Slider, (short)repeatition & 0xFFFF, flags);
   }
 
   /** A key that do nothing but has a unique ID. */
@@ -559,6 +574,7 @@ public final class KeyValue implements Comparable<KeyValue>
   public static final KeyValue SHIFT = modifierKey(0xE00A, Modifier.SHIFT, FLAG_DOUBLE_TAP_LOCK);
   public static final KeyValue COMPOSE = makeComposePending(0xE016, ComposeKeyData.compose, FLAG_SECONDARY);
   public static final KeyValue SELECTION_MODE = makeInternalModifier(Modifier.SELECTION_MODE);
+  public static final KeyValue SUGGESTION_MODE = makeInternalModifier(Modifier.SUGGESTION_MODE);
   public static final KeyValue CHANGE_METHOD = eventKey(0xE009, Event.CHANGE_METHOD_PICKER, FLAG_SMALLER_FONT);
   public static final KeyValue CHANGE_METHOD_PREV = eventKey(0xE009, Event.CHANGE_METHOD_PREV, FLAG_SMALLER_FONT);
   public static final KeyValue CHANGE_METHOD_NEXT = eventKey(0xE009, Event.CHANGE_METHOD_NEXT, FLAG_SMALLER_FONT);
@@ -680,7 +696,11 @@ public final class KeyValue implements Comparable<KeyValue>
       case "complete_second": return statefulKey(Stateful.Complete_second);
       case "complete_third": return statefulKey(Stateful.Complete_third);
       case "complete_emoji": return statefulKey(Stateful.Complete_emoji);
+      case "complete_first_space": return statefulKey(Stateful.Complete_first_space);
+      case "complete_second_space": return statefulKey(Stateful.Complete_second_space);
+      case "complete_third_space": return statefulKey(Stateful.Complete_third_space);
       case "hide_self": return eventKey("⊻", Event.HIDE_SELF, FLAG_SMALLER_FONT);
+      case "toggle_glide": return eventKey("swipe", Event.TOGGLE_GLIDE, FLAG_SMALLER_FONT);
       case "change_dictionary": return eventKey(0xE01D, Event.CHANGE_DICTIONARY, 0);
 
       /* Key events */
@@ -782,6 +802,14 @@ public final class KeyValue implements Comparable<KeyValue>
       case "selection_cancel": return editingKey("Esc", Editing.SELECTION_CANCEL, FLAG_SMALLER_FONT | FLAG_SPECIAL);
       case "selection_cursor_left": return sliderKey(Slider.Selection_cursor_left, -1); // Move the left side of the selection
       case "selection_cursor_right": return sliderKey(Slider.Selection_cursor_right, 1);
+      // Deselect from one side, swiping up-left or up-right on the space bar
+      case "selection_shrink_left": return sliderKey(Slider.Selection_shrink_left, 1, FLAG_SPECIAL | FLAG_SMALLER_FONT);
+      case "selection_shrink_right": return sliderKey(Slider.Selection_shrink_right, 1, FLAG_SPECIAL | FLAG_SMALLER_FONT);
+      case "selection_deselect": return editingKey("deselect", Editing.SELECTION_CANCEL, FLAG_SMALLER_FONT | FLAG_SPECIAL); // Swiping up on the space bar
+      // A tap on the space bar while text is selected switches between
+      // selection mode and suggestion mode
+      case "switch_suggestion_mode": return eventKey("suggestions", Event.SWITCH_SUGGESTION_MODE, FLAG_SMALLER_FONT);
+      case "switch_selection_mode": return eventKey("selection", Event.SWITCH_SELECTION_MODE, FLAG_SMALLER_FONT);
       // These keys are not used
       case "replaceText": return editingKey("repl", Editing.REPLACE, FLAG_SPECIAL | FLAG_SMALLER_FONT);
       case "textAssist": return editingKey(0xE038, Editing.ASSIST, FLAG_SPECIAL);
@@ -865,6 +893,7 @@ public final class KeyValue implements Comparable<KeyValue>
 
       /* Internal keys */
       case "selection_mode": return SELECTION_MODE;
+      case "suggestion_mode": return SUGGESTION_MODE;
 
       default: return null;
     }
@@ -891,14 +920,30 @@ public final class KeyValue implements Comparable<KeyValue>
     Cursor_up(0xE005, true),
     Cursor_down(0xE007, true),
     Selection_cursor_left(0xE008, false),
-    Selection_cursor_right(0xE006, false);
+    Selection_cursor_right(0xE006, false),
+    /** Selecting by sliding, started by holding the space bar (see
+        [Pointers.Sliding]): extend the selection by a number of characters
+        or of lines, keeping its other end. */
+    Select_horizontal(0xE006, false),
+    Select_vertical(0xE007, true),
+    /** Deselecting by sliding, started by the diagonal swipes of the space
+        bar while text is selected: move the left or the right end of the
+        selection towards the other one. Labelled with a word, in the
+        regular font. */
+    Selection_shrink_left("deselect", false),
+    Selection_shrink_right("deselect", false);
 
     final String symbol;
     final boolean vertical;
 
     Slider(int symbol_, boolean vertical)
     {
-      symbol = String.valueOf((char)symbol_);
+      this(String.valueOf((char)symbol_), vertical);
+    }
+
+    Slider(String symbol_, boolean vertical)
+    {
+      symbol = symbol_;
       this.vertical = vertical;
     }
     
@@ -987,7 +1032,11 @@ public final class KeyValue implements Comparable<KeyValue>
     Complete_first,
     Complete_second,
     Complete_third,
-    Complete_emoji;
+    Complete_emoji,
+    /** Same suggestions, followed by a space: used on the space bar. */
+    Complete_first_space,
+    Complete_second_space,
+    Complete_third_space;
 
     @Override
     public String toString()

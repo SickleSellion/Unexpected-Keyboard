@@ -19,6 +19,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.provider.Settings;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -165,6 +166,8 @@ public class Keyboard2 extends InputMethodService
     _keyboard_container_view = (ViewGroup)inflate_view(R.layout.keyboard);
     _keyboard_layout_view = (Keyboard2View)_keyboard_container_view.findViewById(R.id.keyboard_view);
     _candidates_view = (CandidatesView)_keyboard_container_view.findViewById(R.id.candidates_view);
+    _keyboard_container_view.findViewById(R.id.bar_hide_keyboard)
+      .setOnClickListener((v) -> requestHideSelf(0));
   }
 
   InputMethodManager get_imm()
@@ -191,8 +194,11 @@ public class Keyboard2 extends InputMethodService
 
   private void refresh_current_dictionary()
   {
+    // The language name and the dictionary button are only useful when there
+    // is something to switch to; with a single dictionary they would just
+    // occupy the idle bar.
     _config.should_show_dictionary_switch =
-      (_config.device_locales.installed.size() > 0);
+      (_config.device_locales.installed.size() > 1);
     String dict_name = _dictionaries.get_selected(_config);
     if (dict_name == null)
       dict_name = (_config.device_locales.default_ != null) ?
@@ -211,18 +217,38 @@ public class Keyboard2 extends InputMethodService
     refresh_candidates_view();
   }
 
+  /** Whether the candidates view may be shown for the current editor and
+      layout. Its actual visibility also depends on
+      [Config.hide_empty_suggestion_bar], see
+      [update_candidates_view_visibility()]. */
+  private boolean _candidates_view_allowed = false;
+
   private void refresh_candidates_view()
   {
-    boolean should_show =
+    _candidates_view_allowed =
       _config.suggestions_enabled
-      && _config.editor_config.should_show_candidates_view
+      && (_config.editor_config.should_show_candidates_view
+          || (_config.editor_config.email_field
+            && _config.library_snippets.length > 0))
       && !_config.split_layout;
-    if (should_show)
+    if (_candidates_view_allowed)
     {
       _candidates_view.refresh_config(_config);
       _keyeventhandler.dictionary_changed();
     }
-    _candidates_view.setVisibility(should_show ? View.VISIBLE : View.GONE);
+    update_candidates_view_visibility(_suggestions);
+  }
+
+  /** Show or hide the candidates bar. When [hide_empty_suggestion_bar] is
+      set, the bar (which otherwise shows the language name or the hint to
+      install a dictionary) takes space only while there is something to
+      suggest. */
+  private void update_candidates_view_visibility(Suggestions s)
+  {
+    boolean visible = _candidates_view_allowed
+      && (!_config.hide_empty_suggestion_bar
+          || s.count > 0 || s.emoji_suggestion != null);
+    _candidates_view.setVisibility(visible ? View.VISIBLE : View.GONE);
   }
 
   /** Might re-create the keyboard view. [_keyboard_layout_view.setKeyboard()] and
@@ -281,6 +307,7 @@ public class Keyboard2 extends InputMethodService
   @Override
   public void setInputView(View v)
   {
+    apply_navigation_bar_visibility();
     ViewParent parent = v.getParent();
     if (parent != null && parent instanceof ViewGroup)
       ((ViewGroup)parent).removeView(v);
@@ -385,6 +412,119 @@ public class Keyboard2 extends InputMethodService
     _keyboard_layout_view.setKeyboard(current_layout());
   }
 
+  /** Name of the view the framework adds at the bottom of the IME window on
+      devices where the IME draws the navigation bar (gesture navigation,
+      Android 12 and later). It hosts the system's keyboard switcher button
+      and, on some devices, a button that hides the keyboard. */
+  static final String NAVIGATION_BAR_FRAME_CLASS =
+    "android.inputmethodservice.navigationbar.NavigationBarFrame";
+
+  /** Hide or restore the navigation bar frame according to
+      [Config.hide_navigation_bar]. Only done with gesture navigation, where
+      the frame holds no navigation buttons; with three-button navigation the
+      frame is the user's back, home and recents buttons and is left alone.
+      [Keyboard2View] reserves only the gesture area when the frame is
+      hidden. */
+  private View _navigation_bar_frame = null;
+  private View _navigation_bar_decor = null;
+  private boolean _navigation_bar_hidden = false;
+
+  /** The framework shows the frame again during its own layout passes. Hide
+      it before anything is drawn and cancel that draw, so the buttons never
+      flash. */
+  private final ViewTreeObserver.OnPreDrawListener _navigation_bar_pre_draw =
+    () -> {
+      View frame = _navigation_bar_frame;
+      if (_navigation_bar_hidden && frame != null
+          && frame.getVisibility() != View.GONE)
+      {
+        frame.setVisibility(View.GONE);
+        return false;
+      }
+      return true;
+    };
+
+  void apply_navigation_bar_visibility()
+  {
+    Window w = getWindow().getWindow();
+    if (w == null)
+      return;
+    View decor = w.getDecorView();
+    boolean hide = _config.hide_navigation_bar && is_gesture_navigation(this);
+    View frame = find_navigation_bar_frame(decor);
+    _navigation_bar_frame = frame;
+    _navigation_bar_hidden = hide;
+    if (frame == null)
+    {
+      Logs.debug("NavigationBar: frame not found, hide=" + hide
+          + " decor=" + describe_view_tree(decor, 0));
+      return;
+    }
+    if (_navigation_bar_decor != decor)
+    {
+      decor.getViewTreeObserver().addOnPreDrawListener(_navigation_bar_pre_draw);
+      _navigation_bar_decor = decor;
+    }
+    int vis = hide ? View.GONE : View.VISIBLE;
+    if (frame.getVisibility() != vis)
+    {
+      Logs.debug("NavigationBar: frame " + frame.getVisibility() + " -> " + vis);
+      frame.setVisibility(vis);
+    }
+  }
+
+  static View find_navigation_bar_frame(View v)
+  {
+    if (NAVIGATION_BAR_FRAME_CLASS.equals(v.getClass().getName()))
+      return v;
+    if (v instanceof ViewGroup)
+    {
+      ViewGroup g = (ViewGroup)v;
+      for (int i = 0; i < g.getChildCount(); i++)
+      {
+        View r = find_navigation_bar_frame(g.getChildAt(i));
+        if (r != null)
+          return r;
+      }
+    }
+    return null;
+  }
+
+  /** Class names and visibility of the first levels of a view tree, for the
+      debug log. */
+  static String describe_view_tree(View v, int depth)
+  {
+    StringBuilder b = new StringBuilder();
+    b.append(v.getClass().getSimpleName()).append('/').append(v.getVisibility());
+    if (v instanceof ViewGroup && depth < 3)
+    {
+      ViewGroup g = (ViewGroup)v;
+      b.append('[');
+      for (int i = 0; i < g.getChildCount(); i++)
+      {
+        if (i > 0)
+          b.append(' ');
+        b.append(describe_view_tree(g.getChildAt(i), depth + 1));
+      }
+      b.append(']');
+    }
+    return b.toString();
+  }
+
+  /** Whether the system navigation uses gestures (NAV_BAR_MODE_GESTURAL); the
+      constant is not part of the public API. */
+  static boolean is_gesture_navigation(Context ctx)
+  {
+    return Settings.Secure.getInt(ctx.getContentResolver(), "navigation_mode", 0) == 2;
+  }
+
+  @Override
+  public void onWindowShown()
+  {
+    super.onWindowShown();
+    apply_navigation_bar_visibility();
+  }
+
   @Override
   public boolean onEvaluateFullscreenMode()
   {
@@ -443,6 +583,15 @@ public class Keyboard2 extends InputMethodService
     {
       switch (ev)
       {
+        case TOGGLE_GLIDE:
+          _config.set_glide_mode(!_config.glide_mode);
+          break;
+        case SWITCH_SUGGESTION_MODE:
+          _keyboard_layout_view.set_suggestion_mode(true);
+          break;
+        case SWITCH_SELECTION_MODE:
+          _keyboard_layout_view.set_suggestion_mode(false);
+          break;
         case CONFIG:
           start_activity(SettingsActivity.class);
           break;
@@ -554,6 +703,11 @@ public class Keyboard2 extends InputMethodService
       _keyboard_layout_view.set_selection_state(selection_is_ongoing);
     }
 
+    public void on_autocorrection()
+    {
+      _keyboard_layout_view.feedback(VibratorCompat.Feedback.CORRECTION);
+    }
+
     public InputConnection getCurrentInputConnection()
     {
       return Keyboard2.this.getCurrentInputConnection();
@@ -567,15 +721,19 @@ public class Keyboard2 extends InputMethodService
     public void set_suggestions(Suggestions suggestions)
     {
       _candidates_view.set_candidates(suggestions);
+      update_candidates_view_visibility(suggestions);
     }
 
     public String provide_stateful_key_symbol(KeyValue.Stateful q)
     {
       switch (q)
       {
-        case Complete_first: return _suggestions.suggestions[0];
-        case Complete_second: return _suggestions.suggestions[1];
-        case Complete_third: return _suggestions.suggestions[2];
+        case Complete_first:
+        case Complete_first_space: return _suggestions.suggestions[0];
+        case Complete_second:
+        case Complete_second_space: return _suggestions.suggestions[1];
+        case Complete_third:
+        case Complete_third_space: return _suggestions.suggestions[2];
         case Complete_emoji: return _suggestions.emoji_suggestion;
       }
       return "";

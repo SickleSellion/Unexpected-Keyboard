@@ -5,6 +5,7 @@ import android.content.ContextWrapper;
 import android.graphics.Canvas;
 import android.graphics.Insets;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.inputmethodservice.InputMethodService;
@@ -19,6 +20,7 @@ import android.view.WindowManager;
 import android.view.WindowMetrics;
 import java.util.Arrays;
 import java.util.List;
+import juloo.cdict.Cdict;
 
 public class Keyboard2View extends View
   implements View.OnTouchListener, Pointers.IPointerEventHandler
@@ -54,6 +56,30 @@ public class Keyboard2View extends View
   private Theme.Computed _tc;
 
   private static RectF _tmpRect = new RectF();
+
+  /** Bubble showing the symbol about to be typed, see [KeyPreview]. [null]
+      until it is needed. */
+  private KeyPreview _key_preview = null;
+  /** The pointer followed by the preview and the key it pressed. Only the
+      most recent pointer is followed. [-1] and [null] when none. */
+  private int _preview_pointer = -1;
+  private KeyboardData.Key _preview_key = null;
+  private static RectF _tmpKeyRect = new RectF();
+
+  /** Swipe typing, see [glide_move]. The touch that may become or is a
+      stroke: [-1] when none. */
+  private int _glide_pointer = -1;
+  private boolean _glide_active = false;
+  private KeyboardData.Key _glide_down_key = null;
+  private float _glide_down_x = 0f;
+  private float _glide_down_y = 0f;
+  private float[] _glide_points = new float[512];
+  /** Number of floats used in [_glide_points], two per point. */
+  private int _glide_n = 0;
+  private final Path _glide_path = new Path();
+  private Paint _glide_paint = null;
+  /** Letter keys of the current layout, built when needed. */
+  private GlideDecoder.KeyMap _glide_keys = null;
 
   enum Vertical
   {
@@ -117,6 +143,8 @@ public class Keyboard2View extends View
   {
     _mods = Pointers.Modifiers.EMPTY;
     _pointers.clear();
+    _glide_keys = null;
+    glide_reset();
     requestLayout();
     invalidate();
   }
@@ -141,12 +169,27 @@ public class Keyboard2View extends View
     set_fake_ptr_latched(_compose_key, KeyValue.COMPOSE, pending, false);
   }
 
-  /** Called from [Keybard2.onUpdateSelection].  */
+  /** Called from [Keybard2.onUpdateSelection]. A selection starts in
+      selection mode; both modes end with it. */
   public void set_selection_state(boolean selection_state)
   {
-    if (_config.editor_config.selection_mode_enabled)
+    if (!_config.editor_config.selection_mode_enabled)
+      return;
+    set_fake_ptr_latched(KeyboardData.Key.EMPTY,
+        KeyValue.SELECTION_MODE, selection_state, true);
+    if (!selection_state)
       set_fake_ptr_latched(KeyboardData.Key.EMPTY,
-          KeyValue.SELECTION_MODE, selection_state, true);
+          KeyValue.SUGGESTION_MODE, false, true);
+  }
+
+  /** Called from [Keyboard2] when the space bar is tapped while text is
+      selected: switch it between selection mode and suggestion mode. */
+  public void set_suggestion_mode(boolean suggestion_mode)
+  {
+    set_fake_ptr_latched(KeyboardData.Key.EMPTY,
+        KeyValue.SELECTION_MODE, !suggestion_mode, true);
+    set_fake_ptr_latched(KeyboardData.Key.EMPTY,
+        KeyValue.SUGGESTION_MODE, suggestion_mode, true);
   }
 
   public KeyValue modifyKey(KeyValue k, Pointers.Modifiers mods)
@@ -159,7 +202,7 @@ public class Keyboard2View extends View
     updateFlags();
     _config.handler.key_down(k, isSwipe);
     invalidate();
-    vibrate();
+    vibrate(isSwipe ? VibratorCompat.Feedback.SWIPE : VibratorCompat.Feedback.TAP);
   }
 
   public void onPointerUp(KeyValue k, Pointers.Modifiers mods)
@@ -182,7 +225,14 @@ public class Keyboard2View extends View
     updateFlags();
     invalidate();
     if (shouldVibrate)
-      vibrate();
+      vibrate(VibratorCompat.Feedback.TAP);
+  }
+
+  /** Called from [Keyboard2] for events that do not come from a key press,
+      such as a word being autocorrected. */
+  public void feedback(VibratorCompat.Feedback f)
+  {
+    vibrate(f);
   }
 
   private void updateFlags()
@@ -199,7 +249,17 @@ public class Keyboard2View extends View
     {
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_POINTER_UP:
-        _pointers.onTouchUp(event.getPointerId(event.getActionIndex()));
+        int up_id = event.getPointerId(event.getActionIndex());
+        if (up_id == _glide_pointer && _glide_active)
+          glide_end();
+        else
+        {
+          _pointers.onTouchUp(up_id);
+          if (up_id == _glide_pointer)
+            glide_reset();
+        }
+        if (up_id == _preview_pointer)
+          preview_end();
         break;
       case MotionEvent.ACTION_DOWN:
       case MotionEvent.ACTION_POINTER_DOWN:
@@ -208,14 +268,35 @@ public class Keyboard2View extends View
         float ty = event.getY(p);
         KeyboardData.Key key = getKeyAtPosition(tx, ty);
         if (key != null)
-          _pointers.onTouchDown(tx, ty, event.getPointerId(p), key);
+        {
+          int down_id = event.getPointerId(p);
+          _pointers.onTouchDown(tx, ty, down_id, key);
+          preview_follow(down_id, key);
+          if (_config.glide_mode && _glide_pointer == -1 && is_letter_key(key))
+          {
+            // Might become a swipe typing stroke, see [glide_move].
+            _glide_pointer = down_id;
+            _glide_down_key = key;
+            _glide_down_x = tx;
+            _glide_down_y = ty;
+          }
+        }
         break;
       case MotionEvent.ACTION_MOVE:
         for (p = 0; p < event.getPointerCount(); p++)
-          _pointers.onTouchMove(event.getX(p), event.getY(p), event.getPointerId(p));
+        {
+          int id = event.getPointerId(p);
+          if (id == _glide_pointer)
+            glide_move(event.getX(p), event.getY(p));
+          else
+            _pointers.onTouchMove(event.getX(p), event.getY(p), id);
+        }
+        preview_refresh();
         break;
       case MotionEvent.ACTION_CANCEL:
         _pointers.onTouchCancel();
+        preview_end();
+        glide_reset();
         break;
       default:
         return (false);
@@ -223,42 +304,279 @@ public class Keyboard2View extends View
     return (true);
   }
 
+  // Swipe typing
+
+  /** In swipe typing mode ([Config.glide_mode]), a touch that goes down on a
+      letter key and travels onto other keys is a stroke spelling a word, see
+      [GlideDecoder]. It stops acting on its key when the stroke starts; a
+      touch that stays on its key types the letter as usual. The corner
+      symbols of the letter keys are not reachable in this mode. */
+  static boolean is_letter_key(KeyboardData.Key k)
+  {
+    KeyValue kv = k.keys[0];
+    return kv != null && kv.getKind() == KeyValue.Kind.Char
+      && Character.isLetter(kv.getChar());
+  }
+
+  private void glide_move(float x, float y)
+  {
+    if (!_glide_active)
+    {
+      float d = Math.abs(x - _glide_down_x) + Math.abs(y - _glide_down_y);
+      if (d < _keyWidth * 0.7f)
+        return;
+      KeyboardData.Key k = getKeyAtPosition(x, y);
+      if (k == null || k == _glide_down_key)
+        return;
+      // The touch becomes a stroke and no longer types its key.
+      _pointers.cancelPointer(_glide_pointer);
+      if (_glide_pointer == _preview_pointer)
+        preview_end();
+      _glide_active = true;
+      _glide_n = 0;
+      glide_add_point(_glide_down_x, _glide_down_y);
+    }
+    glide_add_point(x, y);
+    invalidate();
+  }
+
+  private void glide_add_point(float x, float y)
+  {
+    if (_glide_n + 2 > _glide_points.length)
+      _glide_points = Arrays.copyOf(_glide_points, _glide_points.length * 2);
+    _glide_points[_glide_n++] = x;
+    _glide_points[_glide_n++] = y;
+  }
+
+  /** The stroke ended: type what it spells. */
+  private void glide_end()
+  {
+    if (_glide_n >= 4)
+    {
+      Pointers.Modifiers mods = _pointers.getModifiers();
+      List<String> words = glide_decode();
+      if (!words.isEmpty())
+      {
+        _config.handler.glide_typed(words, mods);
+        vibrate(VibratorCompat.Feedback.TAP);
+      }
+      _pointers.clearLatchedModifiers();
+    }
+    glide_reset();
+    invalidate();
+  }
+
+  private void glide_reset()
+  {
+    _glide_pointer = -1;
+    _glide_active = false;
+    _glide_down_key = null;
+    _glide_n = 0;
+  }
+
+  private List<String> glide_decode()
+  {
+    Cdict dict = _config.current_dictionary;
+    String[] library = _config.library_glide_words;
+    if ((dict == null && library.length == 0) || _keyboard == null)
+      return new java.util.ArrayList<String>();
+    if (_glide_keys == null)
+      _glide_keys = build_glide_keys();
+    GlideDecoder.Dictionary d = new GlideDecoder.LibraryDictionary(
+        (dict == null) ? null : new CdictDictionary(dict), library);
+    return GlideDecoder.decode(d, _glide_keys, _glide_points, _glide_n / 2);
+  }
+
+  /** Centres of the letter keys, in the coordinates of this view. */
+  private GlideDecoder.KeyMap build_glide_keys()
+  {
+    StringBuilder letters = new StringBuilder();
+    java.util.ArrayList<Float> xs = new java.util.ArrayList<Float>();
+    java.util.ArrayList<Float> ys = new java.util.ArrayList<Float>();
+    float key_h = _tc.row_height - _tc.vertical_margin;
+    float y = _tc.margin_top;
+    for (KeyboardData.Row row : _keyboard.rows)
+    {
+      y += row.shift * _tc.row_height;
+      float x = _marginLeft + _tc.margin_left;
+      float keyH = row.height * _tc.row_height - _tc.vertical_margin;
+      for (KeyboardData.Key k : row.keys)
+      {
+        x += k.shift * _keyWidth;
+        float keyW = _keyWidth * k.width - _tc.horizontal_margin;
+        if (is_letter_key(k))
+        {
+          letters.append(Character.toLowerCase(k.keys[0].getChar()));
+          xs.add(x + keyW / 2f);
+          ys.add(y + keyH / 2f);
+          key_h = keyH;
+        }
+        x += _keyWidth * k.width;
+      }
+      y += row.height * _tc.row_height;
+    }
+    int n = letters.length();
+    char[] ls = new char[n];
+    float[] xa = new float[n];
+    float[] ya = new float[n];
+    for (int i = 0; i < n; i++)
+    {
+      ls[i] = letters.charAt(i);
+      xa[i] = xs.get(i);
+      ya[i] = ys.get(i);
+    }
+    return new GlideDecoder.KeyMap(ls, xa, ya, _keyWidth, key_h);
+  }
+
+  private void draw_glide(Canvas canvas)
+  {
+    if (!_glide_active || _glide_n < 4)
+      return;
+    if (_glide_paint == null)
+    {
+      _glide_paint = new Paint();
+      _glide_paint.setAntiAlias(true);
+      _glide_paint.setStyle(Paint.Style.STROKE);
+      _glide_paint.setStrokeCap(Paint.Cap.ROUND);
+      _glide_paint.setStrokeJoin(Paint.Join.ROUND);
+    }
+    _glide_paint.setColor(_theme.colorKeyActivated);
+    _glide_paint.setAlpha(0xA0);
+    _glide_paint.setStrokeWidth(_keyWidth * 0.18f);
+    _glide_path.reset();
+    _glide_path.moveTo(_glide_points[0], _glide_points[1]);
+    for (int i = 2; i < _glide_n; i += 2)
+      _glide_path.lineTo(_glide_points[i], _glide_points[i + 1]);
+    canvas.drawPath(_glide_path, _glide_paint);
+  }
+
+  /** [GlideDecoder.Dictionary] over the current dictionary. */
+  static final class CdictDictionary implements GlideDecoder.Dictionary
+  {
+    final Cdict _dict;
+
+    CdictDictionary(Cdict d) { _dict = d; }
+
+    public boolean has_prefix(String prefix)
+    {
+      Cdict.Result r = _dict.find(prefix);
+      return r.found || _dict.suffixes(r, 1).length > 0;
+    }
+
+    public int word_freq(String word)
+    {
+      Cdict.Result r = _dict.find(word);
+      return r.found ? _dict.freq(r.index) : -1;
+    }
+  }
+
+  /** Touches slightly outside the keys are attributed to the nearest key
+      rather than dropped: within this fraction of a key width horizontally
+      (gaps between keys, ends of the rows)... */
+  static final float SNAP_HORIZONTAL = 0.5f;
+  /** ... and within this fraction of a row height below the last row. The
+      top margin is always attributed to the first row. */
+  static final float SNAP_BELOW = 0.3f;
+
   private KeyboardData.Row getRowAtPosition(float ty)
   {
+    List<KeyboardData.Row> rows = _keyboard.rows;
+    if (rows.size() == 0)
+      return null;
     float y = _config.marginTop;
     if (ty < y)
-      return null;
-    for (KeyboardData.Row row : _keyboard.rows)
+      return rows.get(0);
+    for (KeyboardData.Row row : rows)
     {
       y += (row.shift + row.height) * _tc.row_height;
       if (ty < y)
         return row;
     }
+    if (ty < y + SNAP_BELOW * _tc.row_height)
+      return rows.get(rows.size() - 1);
     return null;
   }
 
   private KeyboardData.Key getKeyAtPosition(float tx, float ty)
   {
     KeyboardData.Row row = getRowAtPosition(ty);
-    float x = _marginLeft;
-    if (row == null || tx < x)
+    if (row == null)
       return null;
-    for (KeyboardData.Key key : row.keys)
-    {
-      float xLeft = x + key.shift * _keyWidth;
-      float xRight = xLeft + key.width * _keyWidth;
-      if (tx < xLeft)
-        return null;
-      if (tx < xRight)
-        return key;
-      x = xRight;
-    }
-    return null;
+    return row.get_key_at_x((tx - _marginLeft) / _keyWidth, SNAP_HORIZONTAL);
   }
 
-  private void vibrate()
+  private void vibrate(VibratorCompat.Feedback f)
   {
-    VibratorCompat.vibrate(this, _config);
+    VibratorCompat.vibrate(this, _config, f);
+  }
+
+  // Key preview
+
+  /** Follow the pointer [pointer] that just pressed [key]. */
+  private void preview_follow(int pointer, KeyboardData.Key key)
+  {
+    _preview_pointer = pointer;
+    _preview_key = key;
+    preview_refresh();
+  }
+
+  private void preview_end()
+  {
+    _preview_pointer = -1;
+    _preview_key = null;
+    if (_key_preview != null)
+      _key_preview.hide();
+  }
+
+  /** Show the value currently selected by the followed pointer, which changes
+      as the pointer swipes. */
+  private void preview_refresh()
+  {
+    if (_preview_pointer == -1)
+      return;
+    KeyValue kv = _config.key_preview ?
+      _pointers.getPointerValue(_preview_pointer) : null;
+    if (kv == null || !KeyPreview.should_preview(kv)
+        || !keyRect(_preview_key, _tmpKeyRect))
+    {
+      if (_key_preview != null)
+        _key_preview.hide();
+      return;
+    }
+    if (_key_preview == null || _key_preview.getParent() == null)
+    {
+      _key_preview = KeyPreview.install(this, _theme);
+      if (_key_preview == null)
+        return;
+    }
+    _key_preview.show(this, kv, _pointers.isPointerSwiped(_preview_pointer),
+        _tmpKeyRect.left, _tmpKeyRect.top, _tmpKeyRect.width(),
+        _tmpKeyRect.height(), _mainLabelSize * 1.5f, _tc.key.border_radius);
+  }
+
+  /** Compute into [out] the rectangle of [key] as drawn by [onDraw]. Returns
+      [false] if the key is not on the current layout. */
+  private boolean keyRect(KeyboardData.Key key, RectF out)
+  {
+    float y = _tc.margin_top;
+    for (KeyboardData.Row row : _keyboard.rows)
+    {
+      y += row.shift * _tc.row_height;
+      float x = _marginLeft + _tc.margin_left;
+      float keyH = row.height * _tc.row_height - _tc.vertical_margin;
+      for (KeyboardData.Key k : row.keys)
+      {
+        x += k.shift * _keyWidth;
+        if (k == key)
+        {
+          out.set(x, y, x + _keyWidth * k.width - _tc.horizontal_margin, y + keyH);
+          return true;
+        }
+        x += _keyWidth * k.width;
+      }
+      y += row.height * _tc.row_height;
+    }
+    return false;
   }
 
   @Override
@@ -271,6 +589,7 @@ public class Keyboard2View extends View
     _marginBottom = _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
     _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
+    _glide_keys = null;
     // Compute the size of labels based on the width or the height of keys. The
     // margin around keys is taken into account. Keys normal aspect ratio is
     // assumed to be 3/2 for a 10 columns layout. It's generally more, the
@@ -310,6 +629,42 @@ public class Keyboard2View extends View
     }
   }
 
+  /** Height of the area at the bottom of the screen that must stay clear of
+      the keys for the home gesture. The insets given to the IME window count
+      the whole navigation bar frame (which hosts the system's keyboard
+      buttons) as gesture area, so the display-level metrics are consulted:
+      they describe what a regular full-screen window would get. */
+  int gesture_area_height(WindowInsets wi)
+  {
+    int window_gestures = wi.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom;
+    int gestures = window_gestures;
+    int display_gestures = -1;
+    if (VERSION.SDK_INT >= 30)
+    {
+      WindowManager wm =
+        (WindowManager)getContext().getSystemService(Context.WINDOW_SERVICE);
+      if (wm != null)
+      {
+        WindowInsets display_insets = wm.getMaximumWindowMetrics().getWindowInsets();
+        display_gestures = display_insets.getInsets(
+            WindowInsets.Type.mandatorySystemGestures()
+            | WindowInsets.Type.navigationBars()).bottom;
+        if (display_gestures > 0 && display_gestures < gestures)
+          gestures = display_gestures;
+      }
+    }
+    // Gesture navigation reserves 32dp on most devices; never keep more than
+    // that when the window insets say otherwise.
+    int fallback = (int)(32 * getResources().getDisplayMetrics().density);
+    if (gestures > fallback)
+      gestures = fallback;
+    Logs.debug("Keyboard2View.gesture_area_height window=" + window_gestures
+        + " display=" + display_gestures + " fallback=" + fallback
+        + " navigationBars=" + wi.getInsets(WindowInsets.Type.navigationBars()).bottom
+        + " -> " + gestures);
+    return gestures;
+  }
+
   @Override
   public WindowInsets onApplyWindowInsets(WindowInsets wi)
   {
@@ -320,11 +675,25 @@ public class Keyboard2View extends View
       WindowInsets.Type.systemBars()
       | WindowInsets.Type.displayCutout();
     Insets insets = wi.getInsets(insets_types);
+    int bottom = insets.bottom;
+    // With gesture navigation, the bottom system bar inset given to the IME
+    // window is the height of the navigation bar frame that hosts the
+    // system's keyboard buttons. When that frame is hidden (see
+    // [Keyboard2.apply_navigation_bar_visibility]), only the area reserved
+    // for the home gesture has to stay clear of the keys. Gesture navigation
+    // is recognised by the absence of a tappable navigation bar.
+    if (_config.hide_navigation_bar
+        && Keyboard2.is_gesture_navigation(getContext()))
+    {
+      int gestures = gesture_area_height(wi);
+      int cutout = wi.getInsets(WindowInsets.Type.displayCutout()).bottom;
+      bottom = Math.min(bottom, Math.max(gestures, cutout));
+    }
     Logs.debug_insets(_insets_left, _insets_right, _insets_bottom,
-        insets.left, insets.right, insets.bottom);
+        insets.left, insets.right, bottom);
     _insets_left = insets.left;
     _insets_right = insets.right;
-    _insets_bottom = insets.bottom;
+    _insets_bottom = bottom;
     return WindowInsets.CONSUMED;
   }
 
@@ -390,12 +759,21 @@ public class Keyboard2View extends View
       }
       y += row.height * _tc.row_height;
     }
+    draw_glide(canvas);
   }
 
   @Override
   public void onDetachedFromWindow()
   {
     super.onDetachedFromWindow();
+    // The input view is detached and attached again at every start of input.
+    // The preview lives in the window: keep it for the next attach but make
+    // sure nothing stays on screen. It is replaced when the theme changes,
+    // see [KeyPreview.install].
+    if (_key_preview != null)
+      _key_preview.hide_now();
+    _preview_pointer = -1;
+    _preview_key = null;
   }
 
   /** Draw borders and background of the key. */
@@ -442,6 +820,12 @@ public class Keyboard2View extends View
       }
       return _theme.pressedColor;
     }
+    // The swipe typing switch shows whether the mode is on, in the colour of
+    // activated keys (the activated label colour is meant for that
+    // background and can be invisible on a plain key).
+    if (_config.glide_mode && k.getKind() == KeyValue.Kind.Event
+        && k.getEvent() == KeyValue.Event.TOGGLE_GLIDE)
+      return _theme.colorKeyActivated;
     // Custom color for the symbols in the corners of the keys.
     if (sublabel && _config.corner_label_color != 0
         && !k.hasFlagsAny(KeyValue.FLAG_GREYED))

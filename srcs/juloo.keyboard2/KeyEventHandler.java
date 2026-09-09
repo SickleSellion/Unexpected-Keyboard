@@ -3,12 +3,14 @@ package juloo.keyboard2;
 import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
 import android.view.inputmethod.InputConnection;
 import java.util.Iterator;
+import juloo.keyboard2.suggestions.Autocorrection;
 import juloo.keyboard2.suggestions.Suggestions;
 
 public final class KeyEventHandler
@@ -35,6 +37,12 @@ public final class KeyEventHandler
   /** Remember the action that was handled. This is used by autocorrect. */
   LastAction _last_action = null;
   LastAction _next_last_action = null;
+  /** Length of the text typed by the last stroke (word and space), the other
+      words it could have been, and whether it was capitalised. Valid while
+      [_last_action] is [GLIDE]. */
+  int _glide_word_len = 0;
+  java.util.List<String> _glide_alternatives = null;
+  boolean _glide_capitalised = false;
 
   public KeyEventHandler(IReceiver recv, Suggestions sg)
   {
@@ -57,7 +65,14 @@ public final class KeyEventHandler
     _move_cursor_force_fallback =
       conf.editor_config.should_move_cursor_force_fallback;
     _space_bar_auto_complete = conf.space_bar_auto_complete;
+    // Only in editors that expect sentences (they ask for capitalisation),
+    // not in search boxes, URLs, terminals or code editors.
+    _double_space_period = conf.double_space_period
+      && conf.editor_config.caps_mode != 0;
     _last_action = null;
+    _autocorrect_rejected = null;
+    _glide_word_len = 0;
+    _glide_alternatives = null;
   }
 
   /** Selection has been updated. */
@@ -135,6 +150,24 @@ public final class KeyEventHandler
   @Override
   public void suggestion_entered(String text)
   {
+    if (_typedword.is_selection_not_empty())
+    {
+      replace_selection(text);
+      return;
+    }
+    if (_last_action == LastAction.GLIDE && _glide_word_len > 0)
+    {
+      // Replace the word typed by the last stroke, keeping its space.
+      String repl = text.endsWith(" ") ? text : text + " ";
+      if (_glide_capitalised)
+        repl = capitalise(repl);
+      replace_surrounding_text(_glide_word_len, 0, repl);
+      _glide_word_len = repl.length();
+      _next_last_action = LastAction.GLIDE;
+      _last_action = LastAction.GLIDE;
+      show_glide_alternatives();
+      return;
+    }
     String old = _typedword.get();
     int cur_rel = _typedword.cursor_relative();
     replace_surrounding_text(old.length() + cur_rel, -cur_rel, text);
@@ -149,10 +182,82 @@ public final class KeyEventHandler
     send_text(content);
   }
 
+  /** Replace the selected text with [text], keeping the whitespace around
+      it. Backspace puts the selected text back. */
+  void replace_selection(String text)
+  {
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    CharSequence sel = conn.getSelectedText(0);
+    String old = (sel == null) ? "" : sel.toString();
+    int b = 0, e = old.length();
+    while (b < e && Character.isWhitespace(old.charAt(b)))
+      b++;
+    while (e > b && Character.isWhitespace(old.charAt(e - 1)))
+      e--;
+    String repl = old.substring(0, b) + text + old.substring(e);
+    conn.commitText(repl, 1);
+    last_replaced_word = (sel == null) ? null : old;
+    last_replacement_word_len = repl.length();
+    _next_last_action = LastAction.SUGGESTION_ENTERED;
+  }
+
+  @Override
+  public void selected_text(String text)
+  {
+    _suggestions.selected_text(text);
+  }
+
   @Override
   public void currently_typed_word(String word)
   {
+    // Keep offering the other readings of the last stroke until something
+    // else is typed.
+    if (word.length() == 0 && _last_action == LastAction.GLIDE
+        && _glide_alternatives != null)
+    {
+      show_glide_alternatives();
+      return;
+    }
     _suggestions.currently_typed_word(word);
+  }
+
+  /** A stroke over the letter keys was decoded, [words] best first. Type the
+      best one followed by a space and offer the others as suggestions; while
+      they are shown, choosing one replaces the typed word. */
+  @Override
+  public void glide_typed(java.util.List<String> words, Pointers.Modifiers mods)
+  {
+    if (words.isEmpty())
+      return;
+    _glide_capitalised = mods.has(KeyValue.Modifier.SHIFT);
+    String word = words.get(0) + " ";
+    if (_glide_capitalised)
+      word = capitalise(word);
+    send_text(word);
+    _glide_word_len = word.length();
+    _glide_alternatives = words.subList(1, words.size());
+    _last_action = LastAction.GLIDE;
+    show_glide_alternatives();
+  }
+
+  void show_glide_alternatives()
+  {
+    java.util.List<String> alts = _glide_alternatives;
+    int n = Math.min(alts.size(), Suggestions.MAX_COUNT);
+    for (int i = 0; i < Suggestions.MAX_COUNT; i++)
+      _suggestions.suggestions[i] = (i < n) ? alts.get(i) : null;
+    _suggestions.count = n;
+    _suggestions.emoji_suggestion = null;
+    _recv.set_suggestions(_suggestions);
+  }
+
+  static String capitalise(String s)
+  {
+    if (s.length() == 0)
+      return s;
+    return Character.toUpperCase(s.charAt(0)) + s.substring(1);
   }
 
   public void dictionary_changed()
@@ -335,6 +440,10 @@ public final class KeyEventHandler
       case Cursor_down: move_cursor_vertical(r); break;
       case Selection_cursor_left: move_cursor_sel(r, true, key_down); break;
       case Selection_cursor_right: move_cursor_sel(r, false, key_down); break;
+      case Selection_shrink_left: shrink_selection(r, true); break;
+      case Selection_shrink_right: shrink_selection(r, false); break;
+      case Select_horizontal: move_cursor_select(r); break;
+      case Select_vertical: move_cursor_vertical_select(r); break;
     }
   }
 
@@ -346,8 +455,24 @@ public final class KeyEventHandler
       case Complete_second:
       case Complete_third:
       case Complete_emoji:
-        suggestion_entered(st.toString());
+      {
+        String s = st.toString();
+        // Nothing to enter when there is no suggestion; entering the empty
+        // string would delete the word being typed.
+        if (s.length() > 0)
+          suggestion_entered(s);
         break;
+      }
+      case Complete_first_space:
+      case Complete_second_space:
+      case Complete_third_space:
+      {
+        String s = st.toString();
+        // A replacement for the selected text does not get a space.
+        if (s.length() > 0)
+          suggestion_entered(_typedword.is_selection_not_empty() ? s : s + " ");
+        break;
+      }
     }
   }
 
@@ -420,6 +545,33 @@ public final class KeyEventHandler
     move_cursor_fallback(d);
   }
 
+  /** Deselect [d] characters from the left or the right side of the
+      selection: the diagonal swipes of the space bar, which move that side
+      towards the other one as the finger goes on. [d] is negative when the
+      finger comes back, which extends the selection again. The moved side
+      never crosses the other one and deselecting everything ends the
+      selection. Does nothing in editors where the selection cannot be set. */
+  void shrink_selection(int d, boolean from_left)
+  {
+    if (d == 0)
+      return;
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    ExtractedText et = get_cursor_pos(conn);
+    if (et == null || !can_set_selection(conn))
+      return;
+    int sel_start = Math.min(et.selectionStart, et.selectionEnd);
+    int sel_end = Math.max(et.selectionStart, et.selectionEnd);
+    if (from_left)
+      sel_start = Math.max(0, Math.min(sel_start + d, sel_end));
+    else
+      sel_end = Math.max(sel_end - d, sel_start);
+    // Notify the receiver as Android's [onUpdateSelection] is not triggered.
+    if (conn.setSelection(sel_start, sel_end) && sel_start == sel_end)
+      _recv.selection_state_changed(false);
+  }
+
   /** Returns whether the selection can be set using [conn.setSelection()].
       This can happen on Termux or when system modifiers are activated for
       example. */
@@ -436,6 +588,51 @@ public final class KeyEventHandler
       send_key_down_up_repeat(KeyEvent.KEYCODE_DPAD_LEFT, -d);
     else
       send_key_down_up_repeat(KeyEvent.KEYCODE_DPAD_RIGHT, d);
+  }
+
+  /** Extend the selection by [d] characters, moving its end and keeping its
+      start where it is: selecting by sliding, started by holding the space
+      bar. Falls back to shift with the arrow keys. */
+  void move_cursor_select(int d)
+  {
+    if (d == 0)
+      return;
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    ExtractedText et = get_cursor_pos(conn);
+    if (et != null && can_set_selection(conn))
+    {
+      int sel_start = et.selectionStart;
+      int sel_end = et.selectionEnd + d;
+      // An empty selection would end the selection: step over the start.
+      if (sel_end == sel_start)
+        sel_end += d;
+      if (sel_end >= 0 && conn.setSelection(sel_start, sel_end))
+        return;
+    }
+    send_key_down_up_repeat_shifted(
+        (d < 0) ? KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT,
+        Math.abs(d));
+  }
+
+  /** Extend the selection by [d] lines, with shift and the arrow keys. */
+  void move_cursor_vertical_select(int d)
+  {
+    if (d == 0)
+      return;
+    send_key_down_up_repeat_shifted(
+        (d < 0) ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN,
+        Math.abs(d));
+  }
+
+  /** Send arrow keys with shift held, whatever the modifiers are. */
+  void send_key_down_up_repeat_shifted(int keyCode, int repeat)
+  {
+    int saved = _meta_state;
+    _meta_state |= KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON;
+    send_key_down_up_repeat(keyCode, repeat);
+    _meta_state = saved;
   }
 
   /** Move the cursor up and down. This sends UP and DOWN key events that might
@@ -546,15 +743,74 @@ public final class KeyEventHandler
       backspace. */
   int last_replacement_word_len = 0;
 
-  /** Implement autocorrect when enabled in the settings. */
+  /** The word the user restored with backspace after an autocorrection. It is
+      not corrected again, see [Autocorrection]. */
+  String _autocorrect_rejected = null;
+
+  /** Whether tapping space twice quickly types a period. */
+  boolean _double_space_period = false;
+  /** [SystemClock.uptimeMillis()] when the space bar last typed a space. */
+  long _last_space_ms = 0;
+  /** Maximum delay between the two taps on the space bar that type a period,
+      in milliseconds. */
+  static final long DOUBLE_SPACE_TIMEOUT_MS = 700;
+
+  /** Implement autocorrect and the double space period when enabled in the
+      settings. */
   void handle_space_bar()
   {
-    if (_space_bar_auto_complete && _suggestions.count > 0
+    long now = SystemClock.uptimeMillis();
+    if (_space_bar_auto_complete
         && !_typedword.is_selection_not_empty()
         && _typedword.cursor_relative() == 0)
-      suggestion_entered(_suggestions.suggestions[0] + " ");
-    else
-      send_text(" ");
+    {
+      String best = (_suggestions.count > 0) ? _suggestions.suggestions[0] : null;
+      String repl = Autocorrection.replacement(_typedword.get(), best,
+          _autocorrect_rejected);
+      if (repl != null)
+      {
+        suggestion_entered(repl + " ");
+        _recv.on_autocorrection();
+        _last_space_ms = now;
+        return;
+      }
+    }
+    if (_double_space_period
+        && (_last_action == LastAction.SPACE
+          || _last_action == LastAction.SUGGESTION_ENTERED)
+        && now - _last_space_ms <= DOUBLE_SPACE_TIMEOUT_MS
+        && !_typedword.is_selection_not_empty()
+        && space_follows_a_word())
+    {
+      // Replace the previous space with a period followed by a space.
+      replace_surrounding_text(1, 0, ". ");
+      // Keep auto-capitalisation in sync so that the next word is capitalised.
+      _autocap.event_sent(KeyEvent.KEYCODE_DEL, 0);
+      _autocap.typed(". ");
+      return;
+    }
+    send_text(" ");
+    _next_last_action = LastAction.SPACE;
+    _last_space_ms = now;
+  }
+
+  /** Whether the text before the cursor ends with a word followed by a single
+      space. Queries the editor. */
+  boolean space_follows_a_word()
+  {
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return false;
+    CharSequence t = conn.getTextBeforeCursor(2, 0);
+    return t != null && t.length() == 2 && t.charAt(1) == ' '
+      && ends_a_sentence_word(t.charAt(0));
+  }
+
+  /** Letters, digits and closing punctuation can be followed by a period. */
+  static boolean ends_a_sentence_word(char c)
+  {
+    return Character.isLetterOrDigit(c)
+      || ")]}\"'”’»".indexOf(c) >= 0;
   }
 
   /** Undo the last autocorrect. */
@@ -564,6 +820,8 @@ public final class KeyEventHandler
         && last_replaced_word != null)
     {
       replace_surrounding_text(last_replacement_word_len, 0, last_replaced_word);
+      // Typing space again must not correct the same word a second time.
+      _autocorrect_rejected = last_replaced_word;
       last_replaced_word = null;
     }
     else
@@ -579,6 +837,8 @@ public final class KeyEventHandler
     public void set_shift_state(boolean state, boolean lock);
     public void set_compose_pending(boolean pending);
     public void selection_state_changed(boolean selection_is_ongoing);
+    /** A word was replaced by the space bar. */
+    public void on_autocorrection();
     public InputConnection getCurrentInputConnection();
     public Handler getHandler();
   }
@@ -598,6 +858,10 @@ public final class KeyEventHandler
   public static enum LastAction
   {
     SUGGESTION_ENTERED,
+    /** A word typed by a stroke over the keys, see [glide_typed]. */
+    GLIDE,
+    /** A space typed with the space bar. */
+    SPACE,
     OTHER
   }
 }

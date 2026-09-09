@@ -55,6 +55,22 @@ public final class LayoutModifier
     // Add the bottom row before computing the extra keys
     if (kw.bottom_row)
       kw = kw.insert_row(bottom_row, kw.rows.size());
+    // Suggestions on the space bar, before the split duplicates it
+    if (globalConfig.space_bar_swipe_suggestions)
+      kw = kw.mapKeys(new KeyboardData.MapKey() {
+        public KeyboardData.Key apply(KeyboardData.Key k)
+        {
+          return add_suggestions_to_space_bar(k);
+        }
+      });
+    // Swipe typing switch on the shift key
+    if (globalConfig.glide_typing)
+      kw = kw.mapKeys(new KeyboardData.MapKey() {
+        public KeyboardData.Key apply(KeyboardData.Key k)
+        {
+          return add_glide_toggle_to_shift(k);
+        }
+      });
     // Split the layout in landscape orientation
     if (globalConfig.split_layout)
       kw = LayoutLandscapeModifier.transform_to_landscape(kw);
@@ -154,6 +170,35 @@ public final class LayoutModifier
 
   /** Modify keys on the main layout and on the numpad according to the config.
    */
+  static final KeyValue SPACE_KEY = KeyValue.getKeyByName("space");
+
+  /** Put the current suggestions on the corners of the space bar so that a
+      swipe enters them without leaving the keys: up for the first suggestion
+      (the middle of the candidates bar), up-left for the third (left in the
+      bar) and up-right for the second (right in the bar), each followed by a
+      space as the key would type. The corner labels show the words, so the
+      choice is visible before swiping. Replaces what the layout had on those
+      corners, usually the layout switching key. */
+  static KeyboardData.Key add_suggestions_to_space_bar(KeyboardData.Key k)
+  {
+    KeyValue center = k.keys[0];
+    if (center == null || !center.equals(SPACE_KEY))
+      return k;
+    return k
+      .withKeyValue(1, KeyValue.getKeyByName("complete_third_space"))
+      .withKeyValue(7, KeyValue.getKeyByName("complete_first_space"))
+      .withKeyValue(2, KeyValue.getKeyByName("complete_second_space"));
+  }
+
+  /** Swipe typing is switched on and off by swiping up on the shift key. */
+  static KeyboardData.Key add_glide_toggle_to_shift(KeyboardData.Key k)
+  {
+    KeyValue center = k.keys[0];
+    if (center == null || !center.equals(KeyValue.SHIFT))
+      return k;
+    return k.withKeyValue(7, KeyValue.getKeyByName("toggle_glide"));
+  }
+
   static KeyValue modify_key(KeyValue orig)
   {
     EditorConfig ec = globalConfig.editor_config;

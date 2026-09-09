@@ -83,6 +83,23 @@ public final class Pointers implements Handler.Callback
     return -1;
   }
 
+  /** Value currently selected by the pointer [pointerId], with the modifiers
+      applied. [null] if the pointer is unknown or selects nothing. Used by
+      the key preview. */
+  public KeyValue getPointerValue(int pointerId)
+  {
+    Pointer ptr = getPtr(pointerId);
+    return (ptr == null) ? null : ptr.value;
+  }
+
+  /** Whether the pointer [pointerId] has moved out of the center of its key,
+      that is, whether its value comes from a swipe or a gesture. */
+  public boolean isPointerSwiped(int pointerId)
+  {
+    Pointer ptr = getPtr(pointerId);
+    return ptr != null && ptr.gesture != null;
+  }
+
   /** The key must not be already latched . */
   void add_fake_pointer(KeyboardData.Key key, KeyValue kv, boolean locked)
   {
@@ -181,6 +198,26 @@ public final class Pointers implements Handler.Callback
       removePtr(ptr);
       _handler.onPointerUp(ptr_value, ptr.modifiers);
     }
+  }
+
+  /** Forget a pointer without releasing its key: used when a touch turns
+      into a swipe typing stroke. The modifiers it held are left as they
+      are. */
+  public void cancelPointer(int pointerId)
+  {
+    Pointer ptr = getPtr(pointerId);
+    if (ptr == null)
+      return;
+    stopLongPress(ptr);
+    removePtr(ptr);
+    _handler.onPointerFlagsChanged(false);
+  }
+
+  /** Clear the latched modifiers, as releasing a key does. */
+  public void clearLatchedModifiers()
+  {
+    clearLatched();
+    _handler.onPointerFlagsChanged(false);
   }
 
   public void onTouchCancel()
@@ -441,6 +478,13 @@ public final class Pointers implements Handler.Callback
     // Latched key, no key
     if (ptr.hasFlagsAny(FLAG_P_LATCHED) || ptr.value == null)
       return;
+    // Holding the space bar selects text by sliding instead of repeating
+    if (_config.space_bar_hold_selects && ptr.gesture == null
+        && is_space_bar(ptr.value))
+    {
+      start_selection_sliding(ptr);
+      return;
+    }
     // Key is long-pressable
     KeyValue kv = KeyModifier.modify_long_press(ptr.value);
     if (!kv.equals(ptr.value))
@@ -459,6 +503,40 @@ public final class Pointers implements Handler.Callback
       _longpress_handler.sendEmptyMessageDelayed(ptr.timeoutWhat,
           _config.longPressInterval);
     }
+  }
+
+  /** The space bar, including while text is selected, when a tap on it
+      switches modes. */
+  static boolean is_space_bar(KeyValue kv)
+  {
+    switch (kv.getKind())
+    {
+      case Editing:
+        return kv.getEditing() == KeyValue.Editing.SPACE_BAR;
+      case Event:
+        switch (kv.getEvent())
+        {
+          case SWITCH_SUGGESTION_MODE:
+          case SWITCH_SELECTION_MODE:
+            return true;
+        }
+        break;
+    }
+    return false;
+  }
+
+  /** Holding the space bar selects text by sliding: from then on, moving the
+      finger extends the selection, left and right by characters, up and down
+      by lines, and lifting keeps the selection. The key types nothing. */
+  void start_selection_sliding(Pointer ptr)
+  {
+    stopLongPress(ptr);
+    ptr.flags |= FLAG_P_SLIDING;
+    Sliding s = new Sliding(ptr.downX, ptr.downY, 1, 1, null);
+    s.last_move_ms = System.currentTimeMillis(); // React to the first movement
+    ptr.sliding = s;
+    ptr.value = KeyValue.sliderKey(KeyValue.Slider.Select_horizontal, 0);
+    _handler.onPointerDown(ptr.value, true); // Feedback
   }
 
   // Sliding
@@ -581,6 +659,8 @@ public final class Pointers implements Handler.Callback
   {
     /** Accumulated distance since last event. */
     float d = 0.f;
+    /** Vertical distance, when selecting by sliding ([slider] is [null]). */
+    float dv = 0.f;
     /** The slider speed changes depending on the pointer speed. */
     float speed = 0.5f;
     /** Coordinate of the last move. */
@@ -615,6 +695,9 @@ public final class Pointers implements Handler.Callback
     /** Make horizontal sliders slower while ctrl is held (which typically
         means movement happens by whole words instead of characters) */
     static final float SPEED_WORD_MULT = 0.25f;
+    /** Lines are taller than characters are wide: when selecting by sliding,
+        the vertical movement counts for fewer steps. */
+    static final float SELECT_VERTICAL_MULT = 0.35f;
 
     public void onTouchMove(Pointer ptr, float x, float y)
     {
@@ -629,6 +712,29 @@ public final class Pointers implements Handler.Callback
         last_move_ms = System.currentTimeMillis();
       }
       float current_speed = speed / _config.slide_step_px;
+      if (slider == null)
+      { // Selecting by sliding: both axis at once
+        d += (x - last_x) * current_speed;
+        dv += (y - last_y) * current_speed * SELECT_VERTICAL_MULT;
+        update_speed(travelled, x, y);
+        int h = (int)d;
+        if (h != 0)
+        {
+          d -= h;
+          _handler.onPointerHold(
+              KeyValue.sliderKey(KeyValue.Slider.Select_horizontal, h),
+              ptr.modifiers);
+        }
+        int v = (int)dv;
+        if (v != 0)
+        {
+          dv -= v;
+          _handler.onPointerHold(
+              KeyValue.sliderKey(KeyValue.Slider.Select_vertical, v),
+              ptr.modifiers);
+        }
+        return;
+      }
       if (slider.isVertical()) {
         d += (y - last_y) * current_speed * direction_y * SPEED_VERTICAL_MULT;
       } else {

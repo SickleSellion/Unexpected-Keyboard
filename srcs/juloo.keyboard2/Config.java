@@ -11,6 +11,7 @@ import java.util.Map;
 import juloo.cdict.Cdict;
 import juloo.keyboard2.dict.Dictionaries;
 import juloo.keyboard2.prefs.CustomExtraKeysPreference;
+import juloo.keyboard2.prefs.LibraryPreference;
 import juloo.keyboard2.prefs.ExtraKeysPreference;
 import juloo.keyboard2.prefs.LayoutsPreference;
 
@@ -42,6 +43,9 @@ public final class Config
       key, as a ratio of the half key size. [0] keeps them in the corners.
       From the 'corner_label_inset' option. */
   public float corner_label_inset;
+  /** Height of the window in which a key opens another application, in
+      percent of the screen height. See [AppLauncher]. */
+  public int app_window_height;
 
   // From preferences
   /** [null] represent the [system] layout. */
@@ -54,14 +58,21 @@ public final class Config
   public float swipe_dist_px;
   public float slide_step_px;
   public boolean suggestions_enabled;
+  /** Hide the candidates bar while it has no suggestion to show. */
+  public boolean hide_empty_suggestion_bar;
   // Let the system handle vibration when false.
   public boolean vibrate_custom;
   // Control the vibration if [vibrate_custom] is true.
   public long vibrate_duration;
+  // Swipes and autocorrections vibrate differently from taps.
+  public boolean vibrate_distinct;
   public long longPressTimeout;
   public long longPressInterval;
   public boolean keyrepeat_enabled;
   public float margin_bottom;
+  /** Hide the navigation bar frame the system draws under the keyboard on
+      gesture-navigation devices and reserve only the gesture area. */
+  public boolean hide_navigation_bar;
   public int keyboard_rows_height_pixels;
   public int screenHeightPixels;
   public float horizontal_margin;
@@ -74,6 +85,8 @@ public final class Config
   public int keyOpacity; // 0 - 255
   public int keyActivatedOpacity; // 0 - 255
   public boolean double_tap_lock_shift;
+  /** Show the symbol about to be typed above the pressed key. */
+  public boolean key_preview;
   public float characterSize; // Ratio
   public int theme; // Values are R.style.*
   public boolean autocapitalisation;
@@ -84,6 +97,25 @@ public final class Config
   public boolean clipboard_history_enabled;
   public int clipboard_history_duration;
   public boolean space_bar_auto_complete;
+  /** Put the suggestions on the corners of the space bar, see
+      [LayoutModifier.add_suggestions_to_space_bar]. */
+  public boolean space_bar_swipe_suggestions;
+  /** Swipe typing: whether the feature is available, which adds a switch to
+      the shift key. See [GlideDecoder]. */
+  public boolean glide_typing;
+  /** The user's library, see [Library]: words and phrases, personal
+      snippets, both together, and the single words for swipe typing. */
+  public String[] library_words = Library.NONE;
+  public String[] library_snippets = Library.NONE;
+  public String[] library_entries = Library.NONE;
+  public String[] library_glide_words = Library.NONE;
+  /** Swipe typing: whether it is switched on. Toggled from the keyboard, see
+      [set_glide_mode]. */
+  public boolean glide_mode;
+  public boolean double_space_period;
+  /** Holding the space bar selects text by sliding instead of repeating
+      spaces, see [Pointers.start_selection_sliding]. */
+  public boolean space_bar_hold_selects;
   public boolean physical_keyboard_hide;
 
   // Dynamically set
@@ -157,6 +189,7 @@ public final class Config
     add_number_row = !number_row.equals("no_number_row");
     number_row_symbols = number_row.equals("symbols");
     suggestions_enabled = _prefs.getBoolean("suggestions", true);
+    hide_empty_suggestion_bar = _prefs.getBoolean("hide_empty_suggestion_bar", false);
     // The baseline for the swipe distance correspond to approximately the
     // width of a key in portrait mode, as most layouts have 10 columns.
     // Multipled by the DPI ratio because most swipes are made in the diagonals.
@@ -169,10 +202,12 @@ public final class Config
     slide_step_px = slider_sensitivity * swipe_scaling;
     vibrate_custom = _prefs.getBoolean("vibrate_custom", false);
     vibrate_duration = _prefs.getInt("vibrate_duration", 20);
+    vibrate_distinct = _prefs.getBoolean("vibrate_distinct", true);
     longPressTimeout = _prefs.getInt("longpress_timeout", 600);
     longPressInterval = _prefs.getInt("longpress_interval", 65);
     keyrepeat_enabled = _prefs.getBoolean("keyrepeat_enabled", true);
     margin_bottom = get_dip_pref_oriented(dm, "margin_bottom", 7, 3);
+    hide_navigation_bar = _prefs.getBoolean("hide_navigation_bar", false);
     key_vertical_margin = get_dip_pref(dm, "key_vertical_margin", 1.5f) / 100;
     key_horizontal_margin = get_dip_pref(dm, "key_horizontal_margin", 2) / 100;
     // Label brightness is used as the alpha channel
@@ -194,17 +229,23 @@ public final class Config
     horizontal_margin =
       get_dip_pref_oriented(dm, "horizontal_margin", 3, 28);
     double_tap_lock_shift = _prefs.getBoolean("lock_double_tap", false);
+    key_preview = _prefs.getBoolean("key_preview", true);
     characterSize =
       _prefs.getFloat("character_size", 1.15f)
       * characterSizeScale;
     sublabelTextSize = _prefs.getFloat("corner_label_size", 0.22f);
     corner_label_color = parse_color_pref(_prefs.getString("corner_label_color", ""));
     corner_label_inset = _prefs.getInt("corner_label_inset", 0) / 100.f;
+    app_window_height = _prefs.getInt("app_window_height", 50);
     theme = getThemeId(res, _prefs.getString("theme", ""));
     autocapitalisation = _prefs.getBoolean("autocapitalisation", true);
     change_method_key_replacement = get_change_method_key_replacement(_prefs);
     extra_keys_param = ExtraKeysPreference.get_extra_keys(_prefs);
     extra_keys_custom = CustomExtraKeysPreference.get(_prefs);
+    library_words = LibraryPreference.get(_prefs, "library_words");
+    library_snippets = LibraryPreference.get(_prefs, "library_snippets");
+    library_entries = Library.concat(library_words, library_snippets);
+    library_glide_words = Library.single_words(library_entries);
     selected_number_layout = NumberLayout.of_string(_prefs.getString("number_entry_layout", "pin"));
     current_layout_narrow = _prefs.getInt("current_layout_portrait", 0);
     current_layout_wide = _prefs.getInt("current_layout_landscape", 0);
@@ -212,6 +253,11 @@ public final class Config
     clipboard_history_enabled = _prefs.getBoolean("clipboard_history_enabled", false);
     clipboard_history_duration = Integer.parseInt(_prefs.getString("clipboard_history_duration", "5"));
     space_bar_auto_complete = _prefs.getBoolean("space_bar_auto_complete", false);
+    space_bar_swipe_suggestions = _prefs.getBoolean("space_bar_swipe_suggestions", true);
+    glide_typing = _prefs.getBoolean("glide_typing", true);
+    glide_mode = _prefs.getBoolean("glide_mode", false);
+    double_space_period = _prefs.getBoolean("double_space_period", false);
+    space_bar_hold_selects = _prefs.getBoolean("space_bar_hold_selects", true);
     physical_keyboard_hide = _prefs.getString("physical_keyboard_behavior", "hide").equals("hide");
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;
@@ -332,6 +378,14 @@ public final class Config
     }
   }
 
+  /** Switch swipe typing on or off. Persisted so that the choice survives a
+      restart; the preference change listener refreshes the keyboard. */
+  public void set_glide_mode(boolean on)
+  {
+    glide_mode = on;
+    _prefs.edit().putBoolean("glide_mode", on).apply();
+  }
+
   private static Config _globalConfig = null;
 
   public static void initGlobalConfig(SharedPreferences prefs, Resources res,
@@ -358,6 +412,9 @@ public final class Config
     public void key_up(KeyValue value, Pointers.Modifiers mods);
     public void mods_changed(Pointers.Modifiers mods);
     public void suggestion_entered(String text);
+    /** A stroke over the letter keys was decoded into [words], best first.
+        See [GlideDecoder]. */
+    public void glide_typed(java.util.List<String> words, Pointers.Modifiers mods);
   }
 
   /** Config migrations. */

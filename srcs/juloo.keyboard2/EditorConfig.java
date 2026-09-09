@@ -39,6 +39,9 @@ public final class EditorConfig
   /** Suggestions. */
   // Doesn't override [_config.suggestions_enabled].
   public boolean should_show_candidates_view;
+  /** Whether the editor asks for an email address, where the library's
+      snippets are offered right away. */
+  public boolean email_field = false;
 
   public EditorConfig() {}
 
@@ -101,6 +104,10 @@ public final class EditorConfig
     initial_sel_end = info.initialSelEnd;
     /* Suggestions */
     should_show_candidates_view = CandidatesView.should_show(info);
+    int variation = info.inputType & InputType.TYPE_MASK_VARIATION;
+    email_field = inputType == InputType.TYPE_CLASS_TEXT
+      && (variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+          || variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS);
   }
 
   String actionLabel_of_imeAction(int action, Resources res)

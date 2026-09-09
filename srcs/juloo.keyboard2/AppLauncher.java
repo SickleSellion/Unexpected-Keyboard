@@ -20,11 +20,12 @@ import android.widget.Toast;
 public final class AppLauncher
 {
   /** Size and position of the window, in dp. The window is never wider than
-      the screen nor higher than half of it. */
+      the screen. Its height is the share of the screen height chosen with
+      the "app_window_height" option (default 50%). */
   static final int WINDOW_WIDTH_DP = 420;
-  static final int WINDOW_HEIGHT_DP = 640;
   static final int WINDOW_MARGIN_DP = 16;
   static final int WINDOW_TOP_DP = 48;
+  static final int DEFAULT_HEIGHT_PERCENT = 50;
 
   public static void launch(Context ctx, String package_name)
   {
@@ -32,6 +33,9 @@ public final class AppLauncher
     Intent intent = pm.getLaunchIntentForPackage(package_name);
     if (intent == null)
     {
+      // Either not installed or not visible to this app, see the <queries>
+      // element in the manifest.
+      Logs.debug("AppLauncher: no launch intent for " + package_name);
       Toast.makeText(ctx, "App not found: " + package_name, Toast.LENGTH_SHORT).show();
       return;
     }
@@ -66,7 +70,10 @@ public final class AppLauncher
     int margin = dp(dm, WINDOW_MARGIN_DP);
     int top = dp(dm, WINDOW_TOP_DP);
     int width = Math.min(dp(dm, WINDOW_WIDTH_DP), dm.widthPixels - 2 * margin);
-    int height = Math.min(dp(dm, WINDOW_HEIGHT_DP), dm.heightPixels / 2);
+    Config conf = Config.globalConfig();
+    int percent = (conf != null) ? conf.app_window_height : DEFAULT_HEIGHT_PERCENT;
+    int height = Math.min(dm.heightPixels * percent / 100,
+        dm.heightPixels - top - margin);
     int right = dm.widthPixels - margin;
     return new Rect(right - width, top, right, top + height);
   }
