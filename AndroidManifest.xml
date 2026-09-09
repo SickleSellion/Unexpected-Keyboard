@@ -5,6 +5,19 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
+  <!-- Package visibility (Android 11+): keys that open another application
+       (KeyValue.App, AppLauncher) look the target up with
+       getLaunchIntentForPackage(), which only sees packages matching a
+       declared query. Without this, the launch fails unless the system has
+       already granted implicit visibility, for example because the keyboard
+       was recently used inside that very application. -->
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.MAIN"/>
+      <category android:name="android.intent.category.LAUNCHER"/>
+    </intent>
+  </queries>
+
   <application android:label="@string/app_name" android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:hardwareAccelerated="true">
     <service android:name="juloo.keyboard2.Keyboard2" android:label="@string/app_name" android:permission="android.permission.BIND_INPUT_METHOD" android:exported="true" android:directBootAware="true">
       <intent-filter>

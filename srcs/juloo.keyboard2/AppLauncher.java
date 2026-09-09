@@ -32,6 +32,9 @@ public final class AppLauncher
     Intent intent = pm.getLaunchIntentForPackage(package_name);
     if (intent == null)
     {
+      // Either not installed or not visible to this app, see the <queries>
+      // element in the manifest.
+      Logs.debug("AppLauncher: no launch intent for " + package_name);
       Toast.makeText(ctx, "App not found: " + package_name, Toast.LENGTH_SHORT).show();
       return;
     }
