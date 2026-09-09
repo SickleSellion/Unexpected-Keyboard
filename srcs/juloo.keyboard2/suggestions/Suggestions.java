@@ -5,6 +5,7 @@ import java.util.List;
 import juloo.cdict.Cdict;
 import juloo.keyboard2.dict.Dictionaries;
 import juloo.keyboard2.Config;
+import juloo.keyboard2.Library;
 import juloo.keyboard2.ComposeKey;
 import juloo.keyboard2.ComposeKeyData;
 
@@ -33,19 +34,42 @@ public final class Suggestions
 
   public void started()
   {
-    _enabled = _config.editor_config.should_show_candidates_view;
+    _enabled = _config.editor_config.should_show_candidates_view
+      || (_config.editor_config.email_field
+          && _config.library_snippets.length > 0);
     clear();
+    offer_snippets();
   }
 
   public void currently_typed_word(String word)
   {
     if (!_enabled)
       return;
-    if (word.length() < 2 || _config.current_dictionary == null)
+    if (word.length() == 0 && offer_snippets())
+      return;
+    if (word.length() < 2
+        || (_config.current_dictionary == null
+          && _config.library_entries.length == 0))
       clear();
     else
       query_suggestions(word);
     _callback.set_suggestions(this);
+  }
+
+  /** In an editor asking for an email address, offer the library's email
+      addresses before anything is typed. Returns whether it did. */
+  boolean offer_snippets()
+  {
+    if (!_config.editor_config.email_field)
+      return false;
+    String[] emails = Library.emails(_config.library_snippets);
+    if (emails.length == 0)
+      return false;
+    clear();
+    for (int i = 0; i < emails.length && i < MAX_COUNT; i++)
+      suggestions[count++] = emails[i];
+    _callback.set_suggestions(this);
+    return true;
   }
 
   void clear()
@@ -58,34 +82,55 @@ public final class Suggestions
 
   int query_suggestions(String word)
   {
-    Cdict dict = _config.current_dictionary;
     boolean first_char_upper = Character.isUpperCase(word.charAt(0));
+    // The user's own entries come first, as they are written.
+    int i = Library.matches(_config.library_entries, word, suggestions, 0,
+        MAX_COUNT);
+    int library_count = i;
     word = apply_substitutions(word);
-    Cdict.Result r = dict.find(word);
-    int i = 0;
-    if (r.found)
-      suggestions[i++] = dict.word(r.index);
-    int[] suffixes = dict.suffixes(r, MAX_COUNT);
-    // Disable distance search for small words
-    int[] dist = (word.length() < 3 || i + 1 >= MAX_COUNT) ? NO_RESULTS :
-      dict.distance(word, 1, MAX_COUNT);
-    for (int j = 0; j < MAX_COUNT && i < MAX_COUNT; j++)
+    Cdict dict = _config.current_dictionary;
+    if (dict != null && i < MAX_COUNT)
     {
-      if (suffixes.length > j)
-        suggestions[i++] = dict.word(suffixes[j]);
-      if (dist.length > j && i < MAX_COUNT)
-        suggestions[i++] = dict.word(dist[j]);
+      Cdict.Result r = dict.find(word);
+      if (r.found)
+        i = add_suggestion(i, dict.word(r.index));
+      int[] suffixes = dict.suffixes(r, MAX_COUNT);
+      // Disable distance search for small words
+      int[] dist = (word.length() < 3 || i + 1 >= MAX_COUNT) ? NO_RESULTS :
+        dict.distance(word, 1, MAX_COUNT);
+      for (int j = 0; j < MAX_COUNT && i < MAX_COUNT; j++)
+      {
+        if (suffixes.length > j)
+          i = add_suggestion(i, dict.word(suffixes[j]));
+        if (dist.length > j && i < MAX_COUNT)
+          i = add_suggestion(i, dict.word(dist[j]));
+      }
     }
-    if (first_char_upper)
-      capitalize_results();
-    emoji_suggestion = query_emoji(word); // word with substitutions applied
     count = i;
+    if (first_char_upper)
+      capitalize_results(library_count);
+    emoji_suggestion = query_emoji(word); // word with substitutions applied
     return i;
   }
 
-  void capitalize_results()
+  /** Add [w] at index [i] unless it is already listed; returns the next
+      index. */
+  int add_suggestion(int i, String w)
   {
-    for (int i = 0; i < count; i++)
+    if (i >= MAX_COUNT)
+      return i;
+    for (int j = 0; j < i; j++)
+      if (suggestions[j].equalsIgnoreCase(w))
+        return i;
+    suggestions[i] = w;
+    return i + 1;
+  }
+
+  /** Capitalise the dictionary results, from index [from]: the library
+      entries keep the case they were written with. */
+  void capitalize_results(int from)
+  {
+    for (int i = from; i < count; i++)
       suggestions[i] = suggestions[i].substring(0, 1).toUpperCase()
         + suggestions[i].substring(1);
   }

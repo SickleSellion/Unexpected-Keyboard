@@ -227,7 +227,9 @@ public class Keyboard2 extends InputMethodService
   {
     _candidates_view_allowed =
       _config.suggestions_enabled
-      && _config.editor_config.should_show_candidates_view
+      && (_config.editor_config.should_show_candidates_view
+          || (_config.editor_config.email_field
+            && _config.library_snippets.length > 0))
       && !_config.split_layout;
     if (_candidates_view_allowed)
     {

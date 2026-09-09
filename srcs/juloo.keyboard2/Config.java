@@ -11,6 +11,7 @@ import java.util.Map;
 import juloo.cdict.Cdict;
 import juloo.keyboard2.dict.Dictionaries;
 import juloo.keyboard2.prefs.CustomExtraKeysPreference;
+import juloo.keyboard2.prefs.LibraryPreference;
 import juloo.keyboard2.prefs.ExtraKeysPreference;
 import juloo.keyboard2.prefs.LayoutsPreference;
 
@@ -102,6 +103,12 @@ public final class Config
   /** Swipe typing: whether the feature is available, which adds a switch to
       the shift key. See [GlideDecoder]. */
   public boolean glide_typing;
+  /** The user's library, see [Library]: words and phrases, personal
+      snippets, both together, and the single words for swipe typing. */
+  public String[] library_words = Library.NONE;
+  public String[] library_snippets = Library.NONE;
+  public String[] library_entries = Library.NONE;
+  public String[] library_glide_words = Library.NONE;
   /** Swipe typing: whether it is switched on. Toggled from the keyboard, see
       [set_glide_mode]. */
   public boolean glide_mode;
@@ -232,6 +239,10 @@ public final class Config
     change_method_key_replacement = get_change_method_key_replacement(_prefs);
     extra_keys_param = ExtraKeysPreference.get_extra_keys(_prefs);
     extra_keys_custom = CustomExtraKeysPreference.get(_prefs);
+    library_words = LibraryPreference.get(_prefs, "library_words");
+    library_snippets = LibraryPreference.get(_prefs, "library_snippets");
+    library_entries = Library.concat(library_words, library_snippets);
+    library_glide_words = Library.single_words(library_entries);
     selected_number_layout = NumberLayout.of_string(_prefs.getString("number_entry_layout", "pin"));
     current_layout_narrow = _prefs.getInt("current_layout_portrait", 0);
     current_layout_wide = _prefs.getInt("current_layout_landscape", 0);

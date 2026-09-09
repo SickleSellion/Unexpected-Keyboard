@@ -131,6 +131,23 @@ public class GlideDecoderTest
   }
 
   @Test
+  public void library_words_are_known_and_preferred()
+  {
+    GlideDecoder.KeyMap keys = qwerty();
+    Words dict = new Words("dion:9", "din:5");
+    float[] path = stroke(keys, "doin");
+    // "doin" is not a dictionary word: the stroke reads as "dion".
+    assertEquals("dion", GlideDecoder.decode(dict, keys, path, 4).get(0));
+    // With "doin" in the library it wins, and works without any dictionary.
+    GlideDecoder.Dictionary lib =
+      new GlideDecoder.LibraryDictionary(dict, new String[]{"doin"});
+    assertEquals("doin", GlideDecoder.decode(lib, keys, path, 4).get(0));
+    GlideDecoder.Dictionary alone =
+      new GlideDecoder.LibraryDictionary(null, new String[]{"doin"});
+    assertEquals("doin", GlideDecoder.decode(alone, keys, path, 4).get(0));
+  }
+
+  @Test
   public void resample_keeps_ends()
   {
     float[] pts = { 0f, 0f, 100f, 0f, 100f, 100f };

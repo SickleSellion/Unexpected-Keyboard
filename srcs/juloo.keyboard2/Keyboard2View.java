@@ -362,12 +362,14 @@ public class Keyboard2View extends View
   private List<String> glide_decode()
   {
     Cdict dict = _config.current_dictionary;
-    if (dict == null || _keyboard == null)
+    String[] library = _config.library_glide_words;
+    if ((dict == null && library.length == 0) || _keyboard == null)
       return new java.util.ArrayList<String>();
     if (_glide_keys == null)
       _glide_keys = build_glide_keys();
-    return GlideDecoder.decode(new CdictDictionary(dict), _glide_keys,
-        _glide_points, _glide_n / 2);
+    GlideDecoder.Dictionary d = new GlideDecoder.LibraryDictionary(
+        (dict == null) ? null : new CdictDictionary(dict), library);
+    return GlideDecoder.decode(d, _glide_keys, _glide_points, _glide_n / 2);
   }
 
   /** Centres of the letter keys, in the coordinates of this view. */

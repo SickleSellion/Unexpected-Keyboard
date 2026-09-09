@@ -38,6 +38,11 @@
     <string name="pref_suggestions_summary">Enable word completion and spell checking</string>
     <string name="pref_space_bar_auto_complete_title">Autocomplete with the space bar</string>
     <string name="pref_space_bar_auto_complete_summary">Enter the best suggestion by pressing space</string>
+    <string name="pref_library_title">Library</string>
+    <string name="pref_library_summary">Your own words, phrases and snippets</string>
+    <string name="pref_library_help">Entries are suggested as soon as their beginning is typed, they are never autocorrected, and single words are known to swipe typing. Email addresses are offered right away in email fields. Never put passwords here.</string>
+    <string name="pref_library_words_title">Words and phrases</string>
+    <string name="pref_library_snippets_title">Personal snippets (email address, username)</string>
     <string name="pref_space_bar_swipe_suggestions_title">Swipe the space bar to enter a suggestion</string>
     <string name="pref_space_bar_swipe_suggestions_summary">The suggestions are shown on the corners of the space bar: swipe up for the middle one, up-left for the left one, up-right for the right one</string>
     <string name="pref_hide_navigation_bar_title">Hide the navigation bar under the keyboard</string>
