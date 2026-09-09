@@ -8,6 +8,7 @@ import android.preference.PreferenceActivity;
 import android.widget.ListView;
 import android.view.ViewGroup;
 import android.view.View;
+import android.view.WindowInsets;
 import android.preference.PreferenceScreen;
 import android.app.Dialog;
 import android.preference.PreferenceGroup;
@@ -76,14 +77,31 @@ public class SettingsActivity extends PreferenceActivity
     }
   }
 
-  void pad_list(ListView lv)
+  void pad_list(final ListView lv)
   {
     if (lv == null)
       return;
-    int pad = (int)(SCREEN_PADDING_DP * getResources().getDisplayMetrics().density);
-    lv.setPadding(pad, lv.getPaddingTop(), pad, lv.getPaddingBottom());
-    lv.setClipToPadding(false);
+    final int pad = (int)(SCREEN_PADDING_DP * getResources().getDisplayMetrics().density);
+    apply_padding(lv, pad);
     lv.setScrollBarStyle(View.SCROLLBARS_OUTSIDE_OVERLAY);
+    // The main list fits the system windows: its padding is replaced by the
+    // insets every time they are dispatched. Put ours back afterwards.
+    lv.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+      public WindowInsets onApplyWindowInsets(View v, WindowInsets insets)
+      {
+        WindowInsets r = v.onApplyWindowInsets(insets);
+        apply_padding(v, pad);
+        return r;
+      }
+    });
+    lv.requestApplyInsets();
+  }
+
+  static void apply_padding(View v, int pad)
+  {
+    v.setPadding(pad, v.getPaddingTop(), pad, v.getPaddingBottom());
+    if (v instanceof ListView)
+      ((ListView)v).setClipToPadding(false);
   }
 
   void pad_dialog(PreferenceScreen screen)
