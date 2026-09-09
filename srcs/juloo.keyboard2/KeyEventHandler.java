@@ -73,7 +73,6 @@ public final class KeyEventHandler
     _autocorrect_rejected = null;
     _glide_word_len = 0;
     _glide_alternatives = null;
-    set_deselect_mode(false);
   }
 
   /** Selection has been updated. */
@@ -81,21 +80,6 @@ public final class KeyEventHandler
   {
     _autocap.selection_updated(oldSelStart, newSelStart);
     _typedword.selection_updated(oldSelStart, newSelStart, newSelEnd);
-    if (newSelStart == newSelEnd)
-      set_deselect_mode(false); // Deselect mode ends with the selection
-  }
-
-  /** While text is selected, the cursor swipes of the space bar extend the
-      selection. In deselect mode, entered by swiping up on the space bar,
-      they shrink it instead, see [move_cursor_sel]. */
-  boolean _deselect_mode = false;
-
-  void set_deselect_mode(boolean on)
-  {
-    if (on == _deselect_mode)
-      return;
-    _deselect_mode = on;
-    _recv.deselect_mode_changed(on);
   }
 
   /** A key is being pressed. There will not necessarily be a corresponding
@@ -422,10 +406,10 @@ public final class KeyEventHandler
       case Cursor_right: move_cursor(r); break;
       case Cursor_up: move_cursor_vertical(-r); break;
       case Cursor_down: move_cursor_vertical(r); break;
-      // In deselect mode, the swipes move the other end of the selection,
-      // towards the finger: they shrink the selection.
-      case Selection_cursor_left: move_cursor_sel(r, !_deselect_mode, key_down); break;
-      case Selection_cursor_right: move_cursor_sel(r, _deselect_mode, key_down); break;
+      case Selection_cursor_left: move_cursor_sel(r, true, key_down); break;
+      case Selection_cursor_right: move_cursor_sel(r, false, key_down); break;
+      case Selection_shrink_left: shrink_selection(r, true); break;
+      case Selection_shrink_right: shrink_selection(r, false); break;
       case Select_horizontal: move_cursor_select(r); break;
       case Select_vertical: move_cursor_vertical_select(r); break;
     }
@@ -451,15 +435,6 @@ public final class KeyEventHandler
       case Complete_second_space:
       case Complete_third_space:
       {
-        // On the space bar: while text is selected, swiping up switches
-        // deselect mode, in which the cursor swipes of the space bar shrink
-        // the selection instead of extending it.
-        if (st == KeyValue.Stateful.Complete_first_space
-            && _typedword.is_selection_not_empty())
-        {
-          set_deselect_mode(!_deselect_mode);
-          break;
-        }
         String s = st.toString();
         if (s.length() > 0)
           suggestion_entered(s + " ");
@@ -503,9 +478,7 @@ public final class KeyEventHandler
   }
 
   /** Move one of the two side of a selection. If [sel_left] is true, the left
-      position is moved, otherwise the right position is moved. In deselect
-      mode, the moved side never crosses the other one and shrinking the
-      selection to nothing ends it. */
+      position is moved, otherwise the right position is moved. */
   void move_cursor_sel(int d, boolean sel_left, boolean key_down)
   {
     InputConnection conn = _recv.getCurrentInputConnection();
@@ -524,40 +497,46 @@ public final class KeyEventHandler
         sel_start = et.selectionEnd;
         sel_end = et.selectionStart;
       }
-      if (_deselect_mode)
+      do
       {
         if (sel_left)
-          sel_start = Math.max(0, Math.min(sel_start + d, sel_end));
+          sel_start += d;
         else
-          sel_end = Math.max(sel_end + d, sel_start);
-        if (conn.setSelection(sel_start, sel_end))
-        {
-          // Notify the receiver as Android's [onUpdateSelection] is not
-          // triggered.
-          if (sel_start == sel_end)
-          {
-            set_deselect_mode(false);
-            _recv.selection_state_changed(false);
-          }
-          return;
-        }
-      }
-      else
-      {
-        do
-        {
-          if (sel_left)
-            sel_start += d;
-          else
-            sel_end += d;
-          // Move the cursor twice if moving it once would make the selection
-          // empty and stop selection mode.
-        } while (sel_start == sel_end);
-        if (conn.setSelection(sel_start, sel_end))
-          return; // Fallback to sending key events if [setSelection] failed
-      }
+          sel_end += d;
+        // Move the cursor twice if moving it once would make the selection
+        // empty and stop selection mode.
+      } while (sel_start == sel_end);
+      if (conn.setSelection(sel_start, sel_end))
+        return; // Fallback to sending key events if [setSelection] failed
     }
     move_cursor_fallback(d);
+  }
+
+  /** Deselect [d] characters from the left or the right side of the
+      selection: the diagonal swipes of the space bar, which move that side
+      towards the other one as the finger goes on. [d] is negative when the
+      finger comes back, which extends the selection again. The moved side
+      never crosses the other one and deselecting everything ends the
+      selection. Does nothing in editors where the selection cannot be set. */
+  void shrink_selection(int d, boolean from_left)
+  {
+    if (d == 0)
+      return;
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    ExtractedText et = get_cursor_pos(conn);
+    if (et == null || !can_set_selection(conn))
+      return;
+    int sel_start = Math.min(et.selectionStart, et.selectionEnd);
+    int sel_end = Math.max(et.selectionStart, et.selectionEnd);
+    if (from_left)
+      sel_start = Math.max(0, Math.min(sel_start + d, sel_end));
+    else
+      sel_end = Math.max(sel_end - d, sel_start);
+    // Notify the receiver as Android's [onUpdateSelection] is not triggered.
+    if (conn.setSelection(sel_start, sel_end) && sel_start == sel_end)
+      _recv.selection_state_changed(false);
   }
 
   /** Returns whether the selection can be set using [conn.setSelection()].
@@ -720,10 +699,7 @@ public final class KeyEventHandler
     final int curs = et.selectionStart;
     // Notify the receiver as Android's [onUpdateSelection] is not triggered.
     if (conn.setSelection(curs, curs))
-    {
-      set_deselect_mode(false);
       _recv.selection_state_changed(false);
-    }
   }
 
   /** The word that was replaced by a suggestion when the last action was to
@@ -828,9 +804,6 @@ public final class KeyEventHandler
     public void set_shift_state(boolean state, boolean lock);
     public void set_compose_pending(boolean pending);
     public void selection_state_changed(boolean selection_is_ongoing);
-    /** Deselect mode was entered or left, see
-        [KeyEventHandler._deselect_mode]. */
-    public void deselect_mode_changed(boolean on);
     /** A word was replaced by the space bar. */
     public void on_autocorrection();
     public InputConnection getCurrentInputConnection();

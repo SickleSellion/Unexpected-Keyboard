@@ -456,6 +456,15 @@ public final class KeyModifier
           case Cursor_right: name = "selection_cursor_right"; break;
         }
         break;
+      case Stateful:
+        // The suggestions on the upper corners of the space bar: the
+        // diagonal swipes deselect from that side instead.
+        switch (k.getStateful())
+        {
+          case Complete_third_space: name = "selection_shrink_left"; break;
+          case Complete_second_space: name = "selection_shrink_right"; break;
+        }
+        break;
       case Keyevent:
         switch (k.getKeyevent())
         {

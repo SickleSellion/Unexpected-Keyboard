@@ -424,9 +424,15 @@ public final class KeyValue implements Comparable<KeyValue>
       with [repeatition]. */
   public static KeyValue sliderKey(Slider s, int repeatition)
   {
-    // Casting to a short then back to a int to preserve the sign bit.
-    return new KeyValue(s, Kind.Slider, (short)repeatition & 0xFFFF,
+    return sliderKey(s, repeatition,
         FLAG_SPECIAL | FLAG_SECONDARY | FLAG_KEY_FONT);
+  }
+
+  /** [flags] are the display flags. */
+  public static KeyValue sliderKey(Slider s, int repeatition, int flags)
+  {
+    // Casting to a short then back to a int to preserve the sign bit.
+    return new KeyValue(s, Kind.Slider, (short)repeatition & 0xFFFF, flags);
   }
 
   /** A key that do nothing but has a unique ID. */
@@ -787,6 +793,9 @@ public final class KeyValue implements Comparable<KeyValue>
       case "selection_cancel": return editingKey("Esc", Editing.SELECTION_CANCEL, FLAG_SMALLER_FONT | FLAG_SPECIAL);
       case "selection_cursor_left": return sliderKey(Slider.Selection_cursor_left, -1); // Move the left side of the selection
       case "selection_cursor_right": return sliderKey(Slider.Selection_cursor_right, 1);
+      // Deselect from one side, swiping up-left or up-right on the space bar
+      case "selection_shrink_left": return sliderKey(Slider.Selection_shrink_left, 1, FLAG_SPECIAL | FLAG_SMALLER_FONT);
+      case "selection_shrink_right": return sliderKey(Slider.Selection_shrink_right, 1, FLAG_SPECIAL | FLAG_SMALLER_FONT);
       // These keys are not used
       case "replaceText": return editingKey("repl", Editing.REPLACE, FLAG_SPECIAL | FLAG_SMALLER_FONT);
       case "textAssist": return editingKey(0xE038, Editing.ASSIST, FLAG_SPECIAL);
@@ -901,14 +910,25 @@ public final class KeyValue implements Comparable<KeyValue>
         [Pointers.Sliding]): extend the selection by a number of characters
         or of lines, keeping its other end. */
     Select_horizontal(0xE006, false),
-    Select_vertical(0xE007, true);
+    Select_vertical(0xE007, true),
+    /** Deselecting by sliding, started by the diagonal swipes of the space
+        bar while text is selected: move the left or the right end of the
+        selection towards the other one. Labelled with a word, in the
+        regular font. */
+    Selection_shrink_left("deselect", false),
+    Selection_shrink_right("deselect", false);
 
     final String symbol;
     final boolean vertical;
 
     Slider(int symbol_, boolean vertical)
     {
-      symbol = String.valueOf((char)symbol_);
+      this(String.valueOf((char)symbol_), vertical);
+    }
+
+    Slider(String symbol_, boolean vertical)
+    {
+      symbol = symbol_;
       this.vertical = vertical;
     }
     

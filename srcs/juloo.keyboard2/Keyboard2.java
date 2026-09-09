@@ -394,21 +394,8 @@ public class Keyboard2 extends InputMethodService
   {
     super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd);
     _keyeventhandler.selection_updated(oldSelStart, newSelStart, newSelEnd);
-    set_selection_ongoing(newSelStart != newSelEnd);
     if ((oldSelStart == oldSelEnd) != (newSelStart == newSelEnd))
       _keyboard_layout_view.set_selection_state(newSelStart != newSelEnd);
-  }
-
-  /** Whether text is selected in the editor. The space bar's top corner
-      then switches deselect mode, see [provide_stateful_key_symbol]. */
-  boolean _selection_ongoing = false;
-
-  void set_selection_ongoing(boolean ongoing)
-  {
-    if (ongoing == _selection_ongoing)
-      return;
-    _selection_ongoing = ongoing;
-    _keyboard_layout_view.invalidate();
   }
 
   @Override
@@ -707,13 +694,7 @@ public class Keyboard2 extends InputMethodService
 
     public void selection_state_changed(boolean selection_is_ongoing)
     {
-      set_selection_ongoing(selection_is_ongoing);
       _keyboard_layout_view.set_selection_state(selection_is_ongoing);
-    }
-
-    public void deselect_mode_changed(boolean on)
-    {
-      _keyboard_layout_view.set_deselect_mode(on);
     }
 
     public void on_autocorrection()
@@ -741,13 +722,8 @@ public class Keyboard2 extends InputMethodService
     {
       switch (q)
       {
-        case Complete_first: return _suggestions.suggestions[0];
-        case Complete_first_space:
-          // On the space bar: while text is selected, swiping up switches
-          // deselect mode
-          if (_selection_ongoing)
-            return getString(R.string.key_deselect);
-          return _suggestions.suggestions[0];
+        case Complete_first:
+        case Complete_first_space: return _suggestions.suggestions[0];
         case Complete_second:
         case Complete_second_space: return _suggestions.suggestions[1];
         case Complete_third:

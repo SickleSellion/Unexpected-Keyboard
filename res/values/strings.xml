@@ -69,7 +69,6 @@
     <string name="pref_space_bar_swipe_suggestions_summary">The suggestions are shown on the corners of the space bar: swipe up for the middle one, up-left for the left one, up-right for the right one</string>
     <string name="pref_hide_navigation_bar_title">Hide the navigation bar under the keyboard</string>
     <string name="pref_hide_navigation_bar_summary">With gesture navigation, removes the keyboard switch and hide buttons the system draws under the keys and moves the keyboard down, keeping only the home gesture area</string>
-    <string name="key_deselect">deselect</string>
     <string name="bar_switch_keyboard">Switch keyboard</string>
     <string name="bar_hide_keyboard">Hide keyboard</string>
     <string name="pref_hide_empty_suggestion_bar_title">Hide the suggestion bar when it is empty</string>
@@ -90,7 +89,7 @@
     <string name="pref_autocapitalisation_title">Automatic capitalisation</string>
     <string name="pref_autocapitalisation_summary">Press Shift at the beginning of a sentence</string>
     <string name="pref_space_bar_hold_selects_title">Hold the space bar to select text</string>
-    <string name="pref_space_bar_hold_selects_summary">Instead of repeating spaces, holding the space bar starts a selection: slide left or right to select by characters, up or down by lines, and lift to keep it. The cursor swipes of the space bar then extend the selection; swipe up on the space bar to make them shrink it instead</string>
+    <string name="pref_space_bar_hold_selects_summary">Instead of repeating spaces, holding the space bar starts a selection: slide left or right to select by characters, up or down by lines, and lift to keep it. Then, swipe left or right on the space bar to select more on that side, up-left or up-right to deselect from that side</string>
     <string name="pref_double_space_period_title">Double space for a period</string>
     <string name="pref_double_space_period_summary">Tapping space twice quickly after a word types a period</string>
     <string name="pref_change_method_key_replacement_title">Switching between input methods</string>
