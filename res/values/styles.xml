@@ -5,9 +5,21 @@
     <item name="android:layout_width">match_parent</item>
     <item name="android:layout_height">wrap_content</item>
     <item name="android:orientation">horizontal</item>
-    <item name="android:gravity">end|center_vertical</item>
+    <item name="android:gravity">center_vertical</item>
+    <item name="android:paddingStart">@dimen/candidates_gap</item>
     <item name="android:paddingEnd">@dimen/candidates_gap</item>
   </style>
+  <!-- Suggestions, language name and dictionary button, between the two
+       buttons at the ends of the bar. -->
+  <style name="candidates_center">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">match_parent</item>
+    <item name="android:layout_weight">1</item>
+    <item name="android:orientation">horizontal</item>
+    <item name="android:gravity">end|center_vertical</item>
+  </style>
+  <!-- Keyboard switcher and hide buttons at the ends of the bar. -->
+  <style name="candidates_bar_button" parent="change_dictionary"/>
   <style name="candidates_item">
     <item name="android:layout_width">0dp</item>
     <item name="android:layout_height">match_parent</item>

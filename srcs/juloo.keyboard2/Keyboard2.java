@@ -165,6 +165,8 @@ public class Keyboard2 extends InputMethodService
     _keyboard_container_view = (ViewGroup)inflate_view(R.layout.keyboard);
     _keyboard_layout_view = (Keyboard2View)_keyboard_container_view.findViewById(R.id.keyboard_view);
     _candidates_view = (CandidatesView)_keyboard_container_view.findViewById(R.id.candidates_view);
+    _keyboard_container_view.findViewById(R.id.bar_hide_keyboard)
+      .setOnClickListener((v) -> requestHideSelf(0));
   }
 
   InputMethodManager get_imm()
@@ -191,8 +193,11 @@ public class Keyboard2 extends InputMethodService
 
   private void refresh_current_dictionary()
   {
+    // The language name and the dictionary button are only useful when there
+    // is something to switch to; with a single dictionary they would just
+    // occupy the idle bar.
     _config.should_show_dictionary_switch =
-      (_config.device_locales.installed.size() > 0);
+      (_config.device_locales.installed.size() > 1);
     String dict_name = _dictionaries.get_selected(_config);
     if (dict_name == null)
       dict_name = (_config.device_locales.default_ != null) ?

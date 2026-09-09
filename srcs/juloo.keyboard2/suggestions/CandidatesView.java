@@ -55,6 +55,7 @@ public class CandidatesView extends LinearLayout
     setup_item_view(2, R.id.candidates_left);
     setup_item_view(3, R.id.candidates_emoji);
     setup_dictionary_switch_button();
+    setup_switch_keyboard_button();
     _lang_name_view = (TextView)findViewById(R.id.candidates_lang_name);
   }
 
@@ -138,7 +139,8 @@ public class CandidatesView extends LinearLayout
     {
       _status_no_dict = View.inflate(getContext(),
           R.layout.candidates_status_no_dict, null);
-      addView(_status_no_dict);
+      ViewGroup center = (ViewGroup)findViewById(R.id.candidates_center);
+      ((center != null) ? center : this).addView(_status_no_dict);
     }
     Locale current_locale = (config.device_locales.default_ != null) ?
       Locale.forLanguageTag(config.device_locales.default_.lang_tag) : null;
@@ -177,6 +179,24 @@ public class CandidatesView extends LinearLayout
           {
             Config.globalConfig().handler.key_up(
                 KeyValue.getKeyByName("change_dictionary"),
+                Pointers.Modifiers.EMPTY);
+          }
+        });
+  }
+
+  /** The button at the start of the bar opens the system's keyboard picker,
+      like the [change_method] key. The button at the end of the bar hides
+      the keyboard; its listener is set by the input method service, which
+      owns that operation. */
+  void setup_switch_keyboard_button()
+  {
+    View b = findViewById(R.id.bar_switch_keyboard);
+    b.setOnClickListener(new View.OnClickListener()
+        {
+          @Override
+          public void onClick(View _v)
+          {
+            Config.globalConfig().handler.key_up(KeyValue.CHANGE_METHOD,
                 Pointers.Modifiers.EMPTY);
           }
         });
