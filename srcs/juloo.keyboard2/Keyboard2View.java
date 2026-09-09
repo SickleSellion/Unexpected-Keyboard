@@ -803,10 +803,12 @@ public class Keyboard2View extends View
       }
       return _theme.pressedColor;
     }
-    // The swipe typing switch shows whether the mode is on.
+    // The swipe typing switch shows whether the mode is on, in the colour of
+    // activated keys (the activated label colour is meant for that
+    // background and can be invisible on a plain key).
     if (_config.glide_mode && k.getKind() == KeyValue.Kind.Event
         && k.getEvent() == KeyValue.Event.TOGGLE_GLIDE)
-      return _theme.activatedColor;
+      return _theme.colorKeyActivated;
     // Custom color for the symbols in the corners of the keys.
     if (sublabel && _config.corner_label_color != 0
         && !k.hasFlagsAny(KeyValue.FLAG_GREYED))
