@@ -113,6 +113,9 @@ public final class Config
       [set_glide_mode]. */
   public boolean glide_mode;
   public boolean double_space_period;
+  /** Holding the space bar selects text by sliding instead of repeating
+      spaces, see [Pointers.start_selection_sliding]. */
+  public boolean space_bar_hold_selects;
   public boolean physical_keyboard_hide;
 
   // Dynamically set
@@ -254,6 +257,7 @@ public final class Config
     glide_typing = _prefs.getBoolean("glide_typing", true);
     glide_mode = _prefs.getBoolean("glide_mode", false);
     double_space_period = _prefs.getBoolean("double_space_period", false);
+    space_bar_hold_selects = _prefs.getBoolean("space_bar_hold_selects", true);
     physical_keyboard_hide = _prefs.getString("physical_keyboard_behavior", "hide").equals("hide");
     float screen_width_dp = dm.widthPixels / dm.density;
     wide_screen = screen_width_dp >= WIDE_DEVICE_THRESHOLD;

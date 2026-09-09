@@ -408,6 +408,8 @@ public final class KeyEventHandler
       case Cursor_down: move_cursor_vertical(r); break;
       case Selection_cursor_left: move_cursor_sel(r, true, key_down); break;
       case Selection_cursor_right: move_cursor_sel(r, false, key_down); break;
+      case Select_horizontal: move_cursor_select(r); break;
+      case Select_vertical: move_cursor_vertical_select(r); break;
     }
   }
 
@@ -524,6 +526,51 @@ public final class KeyEventHandler
       send_key_down_up_repeat(KeyEvent.KEYCODE_DPAD_LEFT, -d);
     else
       send_key_down_up_repeat(KeyEvent.KEYCODE_DPAD_RIGHT, d);
+  }
+
+  /** Extend the selection by [d] characters, moving its end and keeping its
+      start where it is: selecting by sliding, started by holding the space
+      bar. Falls back to shift with the arrow keys. */
+  void move_cursor_select(int d)
+  {
+    if (d == 0)
+      return;
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    ExtractedText et = get_cursor_pos(conn);
+    if (et != null && can_set_selection(conn))
+    {
+      int sel_start = et.selectionStart;
+      int sel_end = et.selectionEnd + d;
+      // An empty selection would end the selection: step over the start.
+      if (sel_end == sel_start)
+        sel_end += d;
+      if (sel_end >= 0 && conn.setSelection(sel_start, sel_end))
+        return;
+    }
+    send_key_down_up_repeat_shifted(
+        (d < 0) ? KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT,
+        Math.abs(d));
+  }
+
+  /** Extend the selection by [d] lines, with shift and the arrow keys. */
+  void move_cursor_vertical_select(int d)
+  {
+    if (d == 0)
+      return;
+    send_key_down_up_repeat_shifted(
+        (d < 0) ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN,
+        Math.abs(d));
+  }
+
+  /** Send arrow keys with shift held, whatever the modifiers are. */
+  void send_key_down_up_repeat_shifted(int keyCode, int repeat)
+  {
+    int saved = _meta_state;
+    _meta_state |= KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON;
+    send_key_down_up_repeat(keyCode, repeat);
+    _meta_state = saved;
   }
 
   /** Move the cursor up and down. This sends UP and DOWN key events that might

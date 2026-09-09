@@ -896,7 +896,12 @@ public final class KeyValue implements Comparable<KeyValue>
     Cursor_up(0xE005, true),
     Cursor_down(0xE007, true),
     Selection_cursor_left(0xE008, false),
-    Selection_cursor_right(0xE006, false);
+    Selection_cursor_right(0xE006, false),
+    /** Selecting by sliding, started by holding the space bar (see
+        [Pointers.Sliding]): extend the selection by a number of characters
+        or of lines, keeping its other end. */
+    Select_horizontal(0xE006, false),
+    Select_vertical(0xE007, true);
 
     final String symbol;
     final boolean vertical;

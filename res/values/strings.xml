@@ -88,6 +88,8 @@
     <string name="pref_category_behavior">Behavior</string>
     <string name="pref_autocapitalisation_title">Automatic capitalisation</string>
     <string name="pref_autocapitalisation_summary">Press Shift at the beginning of a sentence</string>
+    <string name="pref_space_bar_hold_selects_title">Hold the space bar to select text</string>
+    <string name="pref_space_bar_hold_selects_summary">Instead of repeating spaces, holding the space bar starts a selection: slide left or right to select by characters, up or down by lines, and lift to keep it</string>
     <string name="pref_double_space_period_title">Double space for a period</string>
     <string name="pref_double_space_period_summary">Tapping space twice quickly after a word types a period</string>
     <string name="pref_change_method_key_replacement_title">Switching between input methods</string>
