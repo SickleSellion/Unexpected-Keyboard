@@ -505,10 +505,24 @@ public final class Pointers implements Handler.Callback
     }
   }
 
+  /** The space bar, including while text is selected, when a tap on it
+      switches modes. */
   static boolean is_space_bar(KeyValue kv)
   {
-    return kv.getKind() == KeyValue.Kind.Editing
-      && kv.getEditing() == KeyValue.Editing.SPACE_BAR;
+    switch (kv.getKind())
+    {
+      case Editing:
+        return kv.getEditing() == KeyValue.Editing.SPACE_BAR;
+      case Event:
+        switch (kv.getEvent())
+        {
+          case SWITCH_SUGGESTION_MODE:
+          case SWITCH_SELECTION_MODE:
+            return true;
+        }
+        break;
+    }
+    return false;
   }
 
   /** Holding the space bar selects text by sliding: from then on, moving the

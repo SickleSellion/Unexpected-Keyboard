@@ -169,12 +169,27 @@ public class Keyboard2View extends View
     set_fake_ptr_latched(_compose_key, KeyValue.COMPOSE, pending, false);
   }
 
-  /** Called from [Keybard2.onUpdateSelection].  */
+  /** Called from [Keybard2.onUpdateSelection]. A selection starts in
+      selection mode; both modes end with it. */
   public void set_selection_state(boolean selection_state)
   {
-    if (_config.editor_config.selection_mode_enabled)
+    if (!_config.editor_config.selection_mode_enabled)
+      return;
+    set_fake_ptr_latched(KeyboardData.Key.EMPTY,
+        KeyValue.SELECTION_MODE, selection_state, true);
+    if (!selection_state)
       set_fake_ptr_latched(KeyboardData.Key.EMPTY,
-          KeyValue.SELECTION_MODE, selection_state, true);
+          KeyValue.SUGGESTION_MODE, false, true);
+  }
+
+  /** Called from [Keyboard2] when the space bar is tapped while text is
+      selected: switch it between selection mode and suggestion mode. */
+  public void set_suggestion_mode(boolean suggestion_mode)
+  {
+    set_fake_ptr_latched(KeyboardData.Key.EMPTY,
+        KeyValue.SELECTION_MODE, !suggestion_mode, true);
+    set_fake_ptr_latched(KeyboardData.Key.EMPTY,
+        KeyValue.SUGGESTION_MODE, suggestion_mode, true);
   }
 
   public KeyValue modifyKey(KeyValue k, Pointers.Modifiers mods)

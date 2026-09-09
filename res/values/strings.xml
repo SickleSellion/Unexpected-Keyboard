@@ -66,7 +66,7 @@
     <string name="pref_library_words_title">Words and phrases</string>
     <string name="pref_library_snippets_title">Personal snippets (email address, username)</string>
     <string name="pref_space_bar_swipe_suggestions_title">Swipe the space bar to enter a suggestion</string>
-    <string name="pref_space_bar_swipe_suggestions_summary">The suggestions are shown on the corners of the space bar: swipe up for the middle one, up-left for the left one, up-right for the right one. While text is selected, the suggestions are replacements for it: swipe up, or tap one, to replace the whole selection</string>
+    <string name="pref_space_bar_swipe_suggestions_summary">The suggestions are shown on the corners of the space bar: swipe up for the middle one, up-left for the left one, up-right for the right one. While text is selected, the suggestions are replacements for it: tap the space bar to switch it to the suggestions, then swipe one, or tap one in the bar, to replace the whole selection</string>
     <string name="pref_hide_navigation_bar_title">Hide the navigation bar under the keyboard</string>
     <string name="pref_hide_navigation_bar_summary">With gesture navigation, removes the keyboard switch and hide buttons the system draws under the keys and moves the keyboard down, keeping only the home gesture area</string>
     <string name="bar_switch_keyboard">Switch keyboard</string>
@@ -89,7 +89,7 @@
     <string name="pref_autocapitalisation_title">Automatic capitalisation</string>
     <string name="pref_autocapitalisation_summary">Press Shift at the beginning of a sentence</string>
     <string name="pref_space_bar_hold_selects_title">Hold the space bar to select text</string>
-    <string name="pref_space_bar_hold_selects_summary">Instead of repeating spaces, holding the space bar starts a selection: slide left or right to select by characters, up or down by lines, and lift to keep it. Then, swipe left or right on the space bar to select more on that side, up-left or up-right to deselect from that side</string>
+    <string name="pref_space_bar_hold_selects_summary">Instead of repeating spaces, holding the space bar starts a selection: slide left or right to select by characters, up or down by lines, and lift to keep it. The space bar is then in selection mode: swipe left or right to select more on that side, up-left or up-right to deselect from that side, up to deselect everything. Tap the space bar to switch it to the suggestions, which replace the selected text; tap again to come back</string>
     <string name="pref_double_space_period_title">Double space for a period</string>
     <string name="pref_double_space_period_summary">Tapping space twice quickly after a word types a period</string>
     <string name="pref_change_method_key_replacement_title">Switching between input methods</string>

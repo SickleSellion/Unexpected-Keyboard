@@ -27,6 +27,10 @@ public final class KeyValue implements Comparable<KeyValue>
     HIDE_SELF,
     CHANGE_DICTIONARY,
     TOGGLE_GLIDE,
+    /** A tap on the space bar while text is selected, see
+        [Modifier.SUGGESTION_MODE]. */
+    SWITCH_SUGGESTION_MODE,
+    SWITCH_SELECTION_MODE,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -65,6 +69,10 @@ public final class KeyValue implements Comparable<KeyValue>
     BAR,
     FN,
     SELECTION_MODE,
+    /** While text is selected, after a tap on the space bar: its swipes
+        enter the suggestions instead of selecting, see
+        [KeyModifier.apply_suggestion_mode]. */
+    SUGGESTION_MODE,
   } // Last is be applied first
 
   public static enum Editing
@@ -566,6 +574,7 @@ public final class KeyValue implements Comparable<KeyValue>
   public static final KeyValue SHIFT = modifierKey(0xE00A, Modifier.SHIFT, FLAG_DOUBLE_TAP_LOCK);
   public static final KeyValue COMPOSE = makeComposePending(0xE016, ComposeKeyData.compose, FLAG_SECONDARY);
   public static final KeyValue SELECTION_MODE = makeInternalModifier(Modifier.SELECTION_MODE);
+  public static final KeyValue SUGGESTION_MODE = makeInternalModifier(Modifier.SUGGESTION_MODE);
   public static final KeyValue CHANGE_METHOD = eventKey(0xE009, Event.CHANGE_METHOD_PICKER, FLAG_SMALLER_FONT);
   public static final KeyValue CHANGE_METHOD_PREV = eventKey(0xE009, Event.CHANGE_METHOD_PREV, FLAG_SMALLER_FONT);
   public static final KeyValue CHANGE_METHOD_NEXT = eventKey(0xE009, Event.CHANGE_METHOD_NEXT, FLAG_SMALLER_FONT);
@@ -796,6 +805,11 @@ public final class KeyValue implements Comparable<KeyValue>
       // Deselect from one side, swiping up-left or up-right on the space bar
       case "selection_shrink_left": return sliderKey(Slider.Selection_shrink_left, 1, FLAG_SPECIAL | FLAG_SMALLER_FONT);
       case "selection_shrink_right": return sliderKey(Slider.Selection_shrink_right, 1, FLAG_SPECIAL | FLAG_SMALLER_FONT);
+      case "selection_deselect": return editingKey("deselect", Editing.SELECTION_CANCEL, FLAG_SMALLER_FONT | FLAG_SPECIAL); // Swiping up on the space bar
+      // A tap on the space bar while text is selected switches between
+      // selection mode and suggestion mode
+      case "switch_suggestion_mode": return eventKey("suggestions", Event.SWITCH_SUGGESTION_MODE, FLAG_SMALLER_FONT);
+      case "switch_selection_mode": return eventKey("selection", Event.SWITCH_SELECTION_MODE, FLAG_SMALLER_FONT);
       // These keys are not used
       case "replaceText": return editingKey("repl", Editing.REPLACE, FLAG_SPECIAL | FLAG_SMALLER_FONT);
       case "textAssist": return editingKey(0xE038, Editing.ASSIST, FLAG_SPECIAL);
@@ -879,6 +893,7 @@ public final class KeyValue implements Comparable<KeyValue>
 
       /* Internal keys */
       case "selection_mode": return SELECTION_MODE;
+      case "suggestion_mode": return SUGGESTION_MODE;
 
       default: return null;
     }

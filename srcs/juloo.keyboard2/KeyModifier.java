@@ -95,6 +95,7 @@ public final class KeyModifier
       case SMALL_CAPS: return apply_compose(k, ComposeKeyData.accent_small_caps);
       case ARROW_RIGHT: return apply_combining_char(k, "\u20D7");
       case SELECTION_MODE: return apply_selection_mode(k);
+      case SUGGESTION_MODE: return apply_suggestion_mode(k);
       default: return k;
     }
   }
@@ -438,6 +439,10 @@ public final class KeyModifier
     return (name == null) ? k : KeyValue.getKeyByName(name);
   }
 
+  /** While text is selected, the space bar is in selection mode: it selects
+      more on the side of a swipe, deselects from the side of a diagonal
+      swipe, deselects everything when swiped up and a tap switches it to
+      suggestion mode. */
   private static KeyValue apply_selection_mode(KeyValue k)
   {
     String name = null;
@@ -446,7 +451,7 @@ public final class KeyModifier
       case Char:
         switch (k.getChar())
         {
-          case ' ': name = "selection_cancel"; break;
+          case ' ': name = "switch_suggestion_mode"; break;
         }
         break;
       case Slider:
@@ -457,11 +462,11 @@ public final class KeyModifier
         }
         break;
       case Stateful:
-        // The suggestions on the upper corners of the space bar: the
-        // diagonal swipes deselect from that side instead.
+        // The suggestions on the upper corners of the space bar
         switch (k.getStateful())
         {
           case Complete_third_space: name = "selection_shrink_left"; break;
+          case Complete_first_space: name = "selection_deselect"; break;
           case Complete_second_space: name = "selection_shrink_right"; break;
         }
         break;
@@ -474,7 +479,44 @@ public final class KeyModifier
       case Editing:
         switch (k.getEditing())
         {
-          case SPACE_BAR: name = "selection_cancel"; break;
+          case SPACE_BAR: name = "switch_suggestion_mode"; break;
+        }
+        break;
+    }
+    return (name == null) ? k : KeyValue.getKeyByName(name);
+  }
+
+  /** While text is selected, after a tap on the space bar: its swipes enter
+      the suggestions, which replace the selected text, the cursor swipes
+      still select more and a tap goes back to selection mode. */
+  private static KeyValue apply_suggestion_mode(KeyValue k)
+  {
+    String name = null;
+    switch (k.getKind())
+    {
+      case Char:
+        switch (k.getChar())
+        {
+          case ' ': name = "switch_selection_mode"; break;
+        }
+        break;
+      case Slider:
+        switch (k.getSlider())
+        {
+          case Cursor_left: name = "selection_cursor_left"; break;
+          case Cursor_right: name = "selection_cursor_right"; break;
+        }
+        break;
+      case Keyevent:
+        switch (k.getKeyevent())
+        {
+          case KeyEvent.KEYCODE_ESCAPE: name = "selection_cancel"; break;
+        }
+        break;
+      case Editing:
+        switch (k.getEditing())
+        {
+          case SPACE_BAR: name = "switch_selection_mode"; break;
         }
         break;
     }

@@ -586,6 +586,12 @@ public class Keyboard2 extends InputMethodService
         case TOGGLE_GLIDE:
           _config.set_glide_mode(!_config.glide_mode);
           break;
+        case SWITCH_SUGGESTION_MODE:
+          _keyboard_layout_view.set_suggestion_mode(true);
+          break;
+        case SWITCH_SELECTION_MODE:
+          _keyboard_layout_view.set_suggestion_mode(false);
+          break;
         case CONFIG:
           start_activity(SettingsActivity.class);
           break;
