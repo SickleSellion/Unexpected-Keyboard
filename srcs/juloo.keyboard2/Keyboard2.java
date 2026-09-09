@@ -429,22 +429,78 @@ public class Keyboard2 extends InputMethodService
     if (w == null)
       return;
     View decor = w.getDecorView();
-    if (!(decor instanceof ViewGroup))
-      return;
-    boolean hide = _config.hide_navigation_bar && is_gesture_navigation();
-    ViewGroup g = (ViewGroup)decor;
-    for (int i = 0; i < g.getChildCount(); i++)
+    boolean hide = _config.hide_navigation_bar && is_gesture_navigation(this);
+    View frame = find_navigation_bar_frame(decor);
+    if (frame == null)
     {
-      View c = g.getChildAt(i);
-      if (NAVIGATION_BAR_FRAME_CLASS.equals(c.getClass().getName()))
-        c.setVisibility(hide ? View.GONE : View.VISIBLE);
+      Logs.debug("NavigationBar: frame not found, hide=" + hide
+          + " decor=" + describe_view_tree(decor, 0));
+      return;
+    }
+    int vis = hide ? View.GONE : View.VISIBLE;
+    if (frame.getVisibility() != vis)
+    {
+      Logs.debug("NavigationBar: frame " + frame.getVisibility() + " -> " + vis);
+      frame.setVisibility(vis);
+    }
+    if (hide)
+    {
+      // The framework may show the frame again while laying out the window;
+      // check once more after the next layout pass.
+      final View f = frame;
+      f.post(() -> {
+        if (f.getVisibility() != View.GONE)
+        {
+          Logs.debug("NavigationBar: frame re-shown by the system, hiding again");
+          f.setVisibility(View.GONE);
+        }
+      });
     }
   }
 
-  boolean is_gesture_navigation()
+  static View find_navigation_bar_frame(View v)
   {
-    // NAV_BAR_MODE_GESTURAL; the constant is not part of the public API.
-    return Settings.Secure.getInt(getContentResolver(), "navigation_mode", 0) == 2;
+    if (NAVIGATION_BAR_FRAME_CLASS.equals(v.getClass().getName()))
+      return v;
+    if (v instanceof ViewGroup)
+    {
+      ViewGroup g = (ViewGroup)v;
+      for (int i = 0; i < g.getChildCount(); i++)
+      {
+        View r = find_navigation_bar_frame(g.getChildAt(i));
+        if (r != null)
+          return r;
+      }
+    }
+    return null;
+  }
+
+  /** Class names and visibility of the first levels of a view tree, for the
+      debug log. */
+  static String describe_view_tree(View v, int depth)
+  {
+    StringBuilder b = new StringBuilder();
+    b.append(v.getClass().getSimpleName()).append('/').append(v.getVisibility());
+    if (v instanceof ViewGroup && depth < 3)
+    {
+      ViewGroup g = (ViewGroup)v;
+      b.append('[');
+      for (int i = 0; i < g.getChildCount(); i++)
+      {
+        if (i > 0)
+          b.append(' ');
+        b.append(describe_view_tree(g.getChildAt(i), depth + 1));
+      }
+      b.append(']');
+    }
+    return b.toString();
+  }
+
+  /** Whether the system navigation uses gestures (NAV_BAR_MODE_GESTURAL); the
+      constant is not part of the public API. */
+  static boolean is_gesture_navigation(Context ctx)
+  {
+    return Settings.Secure.getInt(ctx.getContentResolver(), "navigation_mode", 0) == 2;
   }
 
   @Override

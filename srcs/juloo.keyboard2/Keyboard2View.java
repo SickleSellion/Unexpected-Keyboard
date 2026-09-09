@@ -424,10 +424,17 @@ public class Keyboard2View extends View
     // for the home gesture has to stay clear of the keys. Gesture navigation
     // is recognised by the absence of a tappable navigation bar.
     if (_config.hide_navigation_bar
-        && wi.getInsets(WindowInsets.Type.tappableElement()).bottom == 0)
+        && Keyboard2.is_gesture_navigation(getContext()))
     {
       int gestures = wi.getInsets(WindowInsets.Type.mandatorySystemGestures()).bottom;
       int cutout = wi.getInsets(WindowInsets.Type.displayCutout()).bottom;
+      Logs.debug("Keyboard2View.onApplyWindowInsets navigation bar hidden:"
+          + " systemBars=" + insets.bottom
+          + " navigationBars=" + wi.getInsets(WindowInsets.Type.navigationBars()).bottom
+          + " mandatorySystemGestures=" + gestures
+          + " systemGestures=" + wi.getInsets(WindowInsets.Type.systemGestures()).bottom
+          + " tappableElement=" + wi.getInsets(WindowInsets.Type.tappableElement()).bottom
+          + " displayCutout=" + cutout);
       bottom = Math.min(bottom, Math.max(gestures, cutout));
     }
     Logs.debug_insets(_insets_left, _insets_right, _insets_bottom,
