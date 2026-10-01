@@ -315,7 +315,7 @@ public final class Pointers implements Handler.Callback
     float dy = y - ptr.downY;
 
     float dist = Math.abs(dx) + Math.abs(dy);
-    if (dist < _config.swipe_dist_px)
+    if (dist < swipe_dist(ptr))
     {
       // Pointer is still on the center.
       if (ptr.gesture == null || !ptr.gesture.is_in_progress())
@@ -503,6 +503,17 @@ public final class Pointers implements Handler.Callback
       _longpress_handler.sendEmptyMessageDelayed(ptr.timeoutWhat,
           _config.longPressInterval);
     }
+  }
+
+  /** Distance before a swipe leaves the center of the key. The backspace key
+      can ask for a longer swipe, against deleting words by accident. */
+  private float swipe_dist(Pointer ptr)
+  {
+    KeyValue kv = (ptr.key == null) ? null : ptr.key.keys[0];
+    if (kv != null && kv.getKind() == KeyValue.Kind.Editing
+        && kv.getEditing() == KeyValue.Editing.BACKSPACE)
+      return _config.swipe_dist_px * _config.backspace_swipe_scale;
+    return _config.swipe_dist_px;
   }
 
   /** The space bar, including while text is selected, when a tap on it

@@ -235,4 +235,6 @@
   <string name="pref_corner_label_color_e_pink">Pink</string>
   <string name="pref_corner_label_inset_title">Corner symbols position</string>
   <string name="pref_corner_label_inset_summary">Move the corner symbols towards the center of the keys (%s%%)</string>
+  <string name="pref_backspace_swipe_dist_title">Backspace swipe distance</string>
+  <string name="pref_backspace_swipe_dist_summary">The corner swipes of the backspace key need a longer stroke, against deleting by accident (%s%% of the swipe distance)</string>
 </resources>
