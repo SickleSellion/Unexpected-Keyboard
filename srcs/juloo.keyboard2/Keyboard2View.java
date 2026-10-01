@@ -539,7 +539,7 @@ public class Keyboard2View extends View
   private KeyboardData.Key getCorrectedKeyAtPosition(TouchCorrection corr,
       float tx, float ty)
   {
-    KeyboardData.Row row = getRowAtPosition(ty - corr.dy * _tc.row_height);
+    KeyboardData.Row row = getCorrectedRowAtPosition(corr, ty);
     if (row == null)
       return null;
     int n = row.keys.size();
@@ -558,6 +558,29 @@ public class Keyboard2View extends View
     }
     int i = TouchCorrection.pick(lefts, widths, shifts, tx);
     return (i < 0) ? null : row.keys.get(i);
+  }
+
+  /** Each row's top edge moves by [TouchCorrection.top_of], the bottom of
+      the last row by [TouchCorrection.dy]. */
+  private KeyboardData.Row getCorrectedRowAtPosition(TouchCorrection corr,
+      float ty)
+  {
+    List<KeyboardData.Row> rows = _keyboard.rows;
+    float y = _config.marginTop;
+    KeyboardData.Row prev = null;
+    for (int r = 0; r < rows.size(); r++)
+    {
+      KeyboardData.Row row = rows.get(r);
+      y += row.shift * _tc.row_height;
+      float h = row.height * _tc.row_height;
+      if (ty < y + corr.top_of(r) * h)
+        return prev;
+      prev = row;
+      y += h;
+    }
+    if (prev != null && ty < y + corr.dy * prev.height * _tc.row_height)
+      return prev;
+    return null;
   }
 
   private KeyboardData.Row getRowAtPosition(float ty)

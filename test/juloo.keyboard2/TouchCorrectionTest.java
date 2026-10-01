@@ -43,6 +43,10 @@ public class TouchCorrectionTest
     assertEquals(0.09f, tc.dy, 1e-6);
     assertEquals(-0.192f, tc.dx.get('o'), 1e-6);
     assertEquals(-0.267f, tc.dx.get('a'), 1e-6);
+    assertEquals(0.09f, tc.top_of(1), 1e-6);
+    TouchCorrection t2 = TouchCorrection.parse("dy=0.09;top1=-0.15");
+    assertEquals(-0.15f, t2.top_of(1), 1e-6);
+    assertEquals(0.09f, t2.top_of(2), 1e-6);
     assertNull(TouchCorrection.parse(""));
     assertNull(TouchCorrection.parse("screen=x"));
   }

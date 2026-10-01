@@ -6,12 +6,14 @@ import java.util.HashMap;
     the keys move to where the owner actually presses. Stored in the option
     'touch_correction_folded' as "key=value;" pairs: 'screen' and 'date'
     describe the calibration, 'dy' is the vertical shift of every row (in row
-    heights, + = down), and a single letter is the horizontal shift of that
-    key (in key widths, + = right). */
+    heights, + = down), 'topN' moves only the top edge of row N (counted from
+    0 at the top, in heights of that row, - = up) and a single letter is the
+    horizontal shift of that key (in key widths, + = right). */
 public final class TouchCorrection
 {
   public float dy = 0.f;
   public final HashMap<Character, Float> dx = new HashMap<Character, Float>();
+  public final HashMap<Integer, Float> top = new HashMap<Integer, Float>();
   public String screen = "";
   public String date = "";
 
@@ -33,14 +35,23 @@ public final class TouchCorrection
         if (k.equals("screen")) tc.screen = v;
         else if (k.equals("date")) tc.date = v;
         else if (k.equals("dy")) tc.dy = Float.parseFloat(v);
+        else if (k.startsWith("top"))
+          tc.top.put(Integer.parseInt(k.substring(3)), Float.parseFloat(v));
         else if (k.length() == 1)
           tc.dx.put(Character.toLowerCase(k.charAt(0)), Float.parseFloat(v));
       }
       catch (NumberFormatException e) {}
     }
-    if (tc.dy == 0.f && tc.dx.isEmpty())
+    if (tc.dy == 0.f && tc.dx.isEmpty() && tc.top.isEmpty())
       return null;
     return tc;
+  }
+
+  /** Shift of the top edge of row [r], in heights of that row. */
+  public float top_of(int r)
+  {
+    Float f = top.get(r);
+    return (f == null) ? dy : f;
   }
 
   /** Horizontal shift for the key typing [c], 0 for other keys. */
