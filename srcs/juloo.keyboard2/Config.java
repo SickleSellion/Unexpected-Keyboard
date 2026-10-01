@@ -61,6 +61,8 @@ public final class Config
   public float backspace_swipe_scale;
   /** The select switch of the edit panel, not saved. */
   public boolean edit_select = false;
+  /** See [TouchLog]. */
+  public boolean touch_log;
   public float slide_step_px;
   public boolean suggestions_enabled;
   /** Hide the candidates bar while it has no suggestion to show. */
@@ -204,6 +206,7 @@ public final class Config
     float swipe_dist_value = Float.valueOf(_prefs.getString("swipe_dist", "15"));
     swipe_dist_px = swipe_dist_value / 25.f * swipe_scaling;
     backspace_swipe_scale = _prefs.getInt("backspace_swipe_dist", 100) / 100.f;
+    touch_log = _prefs.getBoolean("touch_log", false);
     float slider_sensitivity = Float.valueOf(_prefs.getString("slider_sensitivity", "30")) / 100.f;
     slide_step_px = slider_sensitivity * swipe_scaling;
     vibrate_custom = _prefs.getBoolean("vibrate_custom", false);

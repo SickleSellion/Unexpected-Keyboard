@@ -207,6 +207,9 @@ public class Keyboard2View extends View
 
   public void onPointerUp(KeyValue k, Pointers.Modifiers mods)
   {
+    if (TouchLog.active())
+      TouchLog.line("V " + TouchLog.value(k) + " "
+          + android.os.SystemClock.uptimeMillis());
     // [key_up] must be called before [updateFlags]. The latter might disable
     // flags.
     _config.handler.key_up(k, mods);
@@ -216,6 +219,9 @@ public class Keyboard2View extends View
 
   public void onPointerHold(KeyValue k, Pointers.Modifiers mods)
   {
+    if (TouchLog.active())
+      TouchLog.line("H " + TouchLog.value(k) + " "
+          + android.os.SystemClock.uptimeMillis());
     _config.handler.key_up(k, mods);
     updateFlags();
   }
@@ -250,6 +256,10 @@ public class Keyboard2View extends View
       case MotionEvent.ACTION_UP:
       case MotionEvent.ACTION_POINTER_UP:
         int up_id = event.getPointerId(event.getActionIndex());
+        if (TouchLog.active())
+          TouchLog.line("U " + up_id + " "
+              + event.getX(event.getActionIndex()) + " "
+              + event.getY(event.getActionIndex()) + " " + event.getEventTime());
         if (up_id == _glide_pointer && _glide_active)
           glide_end();
         else
@@ -267,6 +277,8 @@ public class Keyboard2View extends View
         float tx = event.getX(p);
         float ty = event.getY(p);
         KeyboardData.Key key = getKeyAtPosition(tx, ty);
+        if (TouchLog.active())
+          touch_log_down(event.getPointerId(p), tx, ty, key);
         if (key != null)
         {
           int down_id = event.getPointerId(p);
@@ -478,6 +490,49 @@ public class Keyboard2View extends View
       top margin is always attributed to the first row. */
   static final float SNAP_BELOW = 0.3f;
 
+  /** The key geometry is written again after the layout or the size
+      changed. */
+  private boolean _touch_log_geometry = false;
+
+  private void touch_log_down(int id, float tx, float ty, KeyboardData.Key key)
+  {
+    if (!_touch_log_geometry)
+    {
+      _touch_log_geometry = true;
+      TouchLog.line("G " + getWidth() + " " + getHeight() + " "
+          + _config.foldable_unfolded);
+      float y = _config.marginTop;
+      int r = 0;
+      for (KeyboardData.Row row : _keyboard.rows)
+      {
+        y += row.shift * _tc.row_height;
+        float h = row.height * _tc.row_height;
+        float x = _marginLeft;
+        int c = 0;
+        for (KeyboardData.Key k : row.keys)
+        {
+          x += k.shift * _keyWidth;
+          float w = k.width * _keyWidth;
+          TouchLog.line("K " + r + " " + c + " " + x + " " + y + " " + w + " "
+              + h + " " + TouchLog.value(k.keys[0]));
+          x += w;
+          c++;
+        }
+        y += h;
+        r++;
+      }
+    }
+    int kr = -1, kc = -1;
+    if (key != null)
+      for (int r = 0; r < _keyboard.rows.size() && kr < 0; r++)
+      {
+        int c = _keyboard.rows.get(r).keys.indexOf(key);
+        if (c >= 0) { kr = r; kc = c; }
+      }
+    TouchLog.line("D " + id + " " + tx + " " + ty + " " + kr + " " + kc + " "
+        + android.os.SystemClock.uptimeMillis());
+  }
+
   private KeyboardData.Row getRowAtPosition(float ty)
   {
     List<KeyboardData.Row> rows = _keyboard.rows;
@@ -590,6 +645,7 @@ public class Keyboard2View extends View
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
     _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
     _glide_keys = null;
+    _touch_log_geometry = false;
     // Compute the size of labels based on the width or the height of keys. The
     // margin around keys is taken into account. Keys normal aspect ratio is
     // assumed to be 3/2 for a 10 columns layout. It's generally more, the

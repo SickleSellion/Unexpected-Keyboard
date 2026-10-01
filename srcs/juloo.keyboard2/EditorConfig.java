@@ -42,6 +42,8 @@ public final class EditorConfig
   /** Whether the editor asks for an email address, where the library's
       snippets are offered right away. */
   public boolean email_field = false;
+  /** Password fields are never written to [TouchLog]. */
+  public boolean password_field = false;
 
   public EditorConfig() {}
 
@@ -108,6 +110,11 @@ public final class EditorConfig
     email_field = inputType == InputType.TYPE_CLASS_TEXT
       && (variation == InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
           || variation == InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS);
+    password_field = variation == InputType.TYPE_TEXT_VARIATION_PASSWORD
+      || variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+      || variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+      || (inputType == InputType.TYPE_CLASS_NUMBER
+          && variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD);
   }
 
   String actionLabel_of_imeAction(int action, Resources res)
