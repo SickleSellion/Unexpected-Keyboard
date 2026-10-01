@@ -298,6 +298,7 @@ public class Keyboard2 extends InputMethodService
     _config.editor_config.refresh(info, getResources());
     refresh_config();
     _currentSpecialLayout = refresh_special_layout();
+    _config.edit_select = false;
     _keyboard_layout_view.setKeyboard(current_layout());
     _keyeventhandler.started(_config);
     setInputView(_keyboard_container_view);
@@ -596,8 +597,18 @@ public class Keyboard2 extends InputMethodService
           start_activity(SettingsActivity.class);
           break;
 
+        case SWITCH_EDIT_PANEL:
+          _config.edit_select = false;
+          setSpecialLayout(LayoutModifier.modify_edit_panel(
+                loadLayout(R.xml.edit_panel)));
+          break;
+        case TOGGLE_EDIT_SELECT:
+          _config.edit_select = !_config.edit_select;
+          _keyboard_layout_view.invalidate();
+          break;
         case SWITCH_TEXT:
           _currentSpecialLayout = null;
+          _config.edit_select = false;
           _keyboard_layout_view.setKeyboard(current_layout());
           break;
 

@@ -31,6 +31,10 @@ public final class KeyValue implements Comparable<KeyValue>
         [Modifier.SUGGESTION_MODE]. */
     SWITCH_SUGGESTION_MODE,
     SWITCH_SELECTION_MODE,
+    /** The edit panel, see [res/xml/edit_panel.xml]. */
+    SWITCH_EDIT_PANEL,
+    /** While on, the arrows of the edit panel select. */
+    TOGGLE_EDIT_SELECT,
   }
 
   // Must be evaluated in the reverse order of their values.
@@ -94,6 +98,13 @@ public final class KeyValue implements Comparable<KeyValue>
     SELECTION_CANCEL,
     SPACE_BAR,
     BACKSPACE,
+    // Arrows of the edit panel, they select while [Config.edit_select] is on.
+    EDIT_LEFT,
+    EDIT_RIGHT,
+    EDIT_UP,
+    EDIT_DOWN,
+    EDIT_WORD_LEFT,
+    EDIT_WORD_RIGHT,
   }
 
   public static enum Placeholder
@@ -810,6 +821,14 @@ public final class KeyValue implements Comparable<KeyValue>
       // selection mode and suggestion mode
       case "switch_suggestion_mode": return eventKey("suggestions", Event.SWITCH_SUGGESTION_MODE, FLAG_SMALLER_FONT);
       case "switch_selection_mode": return eventKey("selection", Event.SWITCH_SELECTION_MODE, FLAG_SMALLER_FONT);
+      case "switch_edit_panel": return eventKey("edit", Event.SWITCH_EDIT_PANEL, FLAG_SMALLER_FONT);
+      case "edit_select": return eventKey("select", Event.TOGGLE_EDIT_SELECT, FLAG_SMALLER_FONT);
+      case "edit_left": return editingKey(0xE008, Editing.EDIT_LEFT, 0);
+      case "edit_right": return editingKey(0xE006, Editing.EDIT_RIGHT, 0);
+      case "edit_up": return editingKey(0xE005, Editing.EDIT_UP, 0);
+      case "edit_down": return editingKey(0xE007, Editing.EDIT_DOWN, 0);
+      case "edit_word_left": return editingKey("«", Editing.EDIT_WORD_LEFT, 0);
+      case "edit_word_right": return editingKey("»", Editing.EDIT_WORD_RIGHT, 0);
       // These keys are not used
       case "replaceText": return editingKey("repl", Editing.REPLACE, FLAG_SPECIAL | FLAG_SMALLER_FONT);
       case "textAssist": return editingKey(0xE038, Editing.ASSIST, FLAG_SPECIAL);

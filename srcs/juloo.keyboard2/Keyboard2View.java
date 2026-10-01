@@ -826,6 +826,9 @@ public class Keyboard2View extends View
     if (_config.glide_mode && k.getKind() == KeyValue.Kind.Event
         && k.getEvent() == KeyValue.Event.TOGGLE_GLIDE)
       return _theme.colorKeyActivated;
+    if (_config.edit_select && k.getKind() == KeyValue.Kind.Event
+        && k.getEvent() == KeyValue.Event.TOGGLE_EDIT_SELECT)
+      return _theme.colorKeyActivated;
     // Custom color for the symbols in the corners of the keys.
     if (sublabel && _config.corner_label_color != 0
         && !k.hasFlagsAny(KeyValue.FLAG_GREYED))

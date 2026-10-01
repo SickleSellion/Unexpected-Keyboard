@@ -315,7 +315,9 @@ public final class Pointers implements Handler.Callback
     float dy = y - ptr.downY;
 
     float dist = Math.abs(dx) + Math.abs(dy);
-    if (dist < _config.swipe_dist_px)
+    if (backspace_two_step(ptr, x, y, dx, dy, dist))
+      return;
+    if (dist < swipe_dist(ptr))
     {
       // Pointer is still on the center.
       if (ptr.gesture == null || !ptr.gesture.is_in_progress())
@@ -505,6 +507,75 @@ public final class Pointers implements Handler.Callback
     }
   }
 
+  /** Two-step swipe on the backspace key, which sits at the edge of the
+      screen: a swipe up-left (when that corner is empty) makes room, then a
+      second swipe up-right, down-right or down-left from there selects the
+      key's own NE, SE or SW corner. Releasing after the first step does
+      nothing. Returns [true] when the move was handled. */
+  private boolean backspace_two_step(Pointer ptr, float x, float y, float dx,
+      float dy, float dist)
+  {
+    if (!ptr.two_step)
+    {
+      if (ptr.gesture != null || !is_backspace(ptr) || ptr.key.keys[1] != null
+          || dist < swipe_dist(ptr) || !is_up_left(dx, dy))
+        return false;
+      ptr.two_step = true;
+      ptr.stepX = x;
+      ptr.stepY = y;
+      ptr.value = null;
+      stopLongPress(ptr); // No key repeat
+      _handler.onPointerFlagsChanged(true); // Vibrate
+      return true;
+    }
+    int i = two_step_corner(x - ptr.stepX, y - ptr.stepY, swipe_dist(ptr));
+    KeyValue kv = (i < 0 || ptr.key.keys[i] == null) ? null
+      : _handler.modifyKey(ptr.key.keys[i], ptr.modifiers);
+    if (kv == ptr.value || (kv != null && kv.equals(ptr.value)))
+      return true;
+    ptr.value = kv;
+    if (kv != null)
+      _handler.onPointerDown(kv, true);
+    else
+      _handler.onPointerFlagsChanged(false);
+    return true;
+  }
+
+  static boolean is_backspace(Pointer ptr)
+  {
+    KeyValue kv = (ptr.key == null) ? null : ptr.key.keys[0];
+    return kv != null && kv.getKind() == KeyValue.Kind.Editing
+      && kv.getEditing() == KeyValue.Editing.BACKSPACE;
+  }
+
+  /** A diagonal swipe up and to the left, within 22.5 degrees. */
+  static boolean is_up_left(float dx, float dy)
+  {
+    float ax = -dx, ay = -dy;
+    return ax > 0 && ay > 0 && ay > 0.414f * ax && ax > 0.414f * ay;
+  }
+
+  /** Second step of [backspace_two_step]: the corner of the key in the
+      quadrant of the move from where the first step ended, -1 while the move
+      is shorter than [min_dist] (changing your mind) or goes on up-left. */
+  static int two_step_corner(float dx, float dy, float min_dist)
+  {
+    if (Math.abs(dx) + Math.abs(dy) < min_dist)
+      return -1;
+    if (dx > 0)
+      return (dy < 0) ? 2 : 4; // NE: delete, SE: delete word forward
+    return (dy > 0) ? 3 : -1; // SW: delete word backward
+  }
+
+  /** Distance before a swipe leaves the center of the key. The backspace key
+      can ask for a longer swipe, against deleting words by accident. */
+  private float swipe_dist(Pointer ptr)
+  {
+    if (is_backspace(ptr))
+      return _config.swipe_dist_px * _config.backspace_swipe_scale;
+    return _config.swipe_dist_px;
+  }
+
   /** The space bar, including while text is selected, when a tap on it
       switches modes. */
   static boolean is_space_bar(KeyValue kv)
@@ -634,6 +705,11 @@ public final class Pointers implements Handler.Callback
     public int timeoutWhat;
     /** [null] when not in sliding mode. */
     public Sliding sliding;
+    /** See [backspace_two_step]: the first step is done, it ended at
+        [stepX, stepY]. */
+    public boolean two_step;
+    public float stepX;
+    public float stepY;
 
     public Pointer(int p, KeyboardData.Key k, KeyValue v, float x, float y, Modifiers m, int f)
     {
@@ -647,6 +723,7 @@ public final class Pointers implements Handler.Callback
       flags = f;
       timeoutWhat = -1;
       sliding = null;
+      two_step = false;
     }
 
     public boolean hasFlagsAny(int has)
