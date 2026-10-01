@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The edit panel, opened by swiping down on the shift key. The bottom row
+     is added by [LayoutModifier.modify_edit_panel]. -->
+<keyboard bottom_row="false">
+  <row>
+    <key width="2" key0="cut"/>
+    <key width="2" key0="copy"/>
+    <key width="2" key0="paste"/>
+    <key width="2" key0="selectAll"/>
+    <key width="2" key0="switch_text"/>
+  </row>
+  <row>
+    <key width="2.5" key0="delete_word"/>
+    <key width="2.5" key0="backspace"/>
+    <key width="2.5" key0="delete"/>
+    <key width="2.5" key0="forward_delete_word"/>
+  </row>
+  <row>
+    <key width="2" key0="edit_word_left"/>
+    <key width="2" key0="edit_left"/>
+    <key width="2" key0="edit_up"/>
+    <key width="2" key0="edit_right"/>
+    <key width="2" key0="edit_word_right"/>
+  </row>
+  <row>
+    <key width="4" key0="edit_select"/>
+    <key width="2" key0="edit_down"/>
+    <key width="2" key0="undo"/>
+    <key width="2" key0="redo"/>
+  </row>
+</keyboard>

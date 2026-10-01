@@ -412,7 +412,102 @@ public final class KeyEventHandler
       case SELECTION_CANCEL: cancel_selection(); break;
       case SPACE_BAR: handle_space_bar(); break;
       case BACKSPACE: handle_backspace(); break;
+      case EDIT_LEFT: edit_move(-1); break;
+      case EDIT_RIGHT: edit_move(1); break;
+      case EDIT_UP: edit_move_vertical(-1); break;
+      case EDIT_DOWN: edit_move_vertical(1); break;
+      case EDIT_WORD_LEFT: edit_jump(false); break;
+      case EDIT_WORD_RIGHT: edit_jump(true); break;
     }
+  }
+
+  static final int EDIT_JUMP_CONTEXT = 200;
+
+  static boolean edit_select()
+  {
+    return Config.globalConfig().edit_select;
+  }
+
+  /** Arrows of the edit panel. While the select switch is on, the selection
+      is extended, otherwise the cursor moves and a selection collapses on the
+      side of the arrow. */
+  void edit_move(int d)
+  {
+    if (edit_select())
+    {
+      move_cursor_select(d);
+      return;
+    }
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    ExtractedText et = get_cursor_pos(conn);
+    if (et != null && can_set_selection(conn))
+    {
+      int lo = Math.min(et.selectionStart, et.selectionEnd);
+      int hi = Math.max(et.selectionStart, et.selectionEnd);
+      int pos = (lo != hi) ? ((d < 0) ? lo : hi) : Math.max(0, lo + d);
+      if (conn.setSelection(pos, pos))
+        return;
+    }
+    move_cursor_fallback(d);
+  }
+
+  void edit_move_vertical(int d)
+  {
+    if (edit_select())
+      move_cursor_vertical_select(d);
+    else
+      move_cursor_vertical(d);
+  }
+
+  /** The « and » keys: cross one word or one run of spaces, see [EditJump].
+      While selecting, the moving end of the selection jumps. */
+  void edit_jump(boolean forward)
+  {
+    InputConnection conn = _recv.getCurrentInputConnection();
+    if (conn == null)
+      return;
+    ExtractedText et = get_cursor_pos(conn);
+    if (et == null || !can_set_selection(conn))
+    {
+      int saved = _meta_state;
+      if (edit_select())
+        _meta_state |= KeyEvent.META_SHIFT_ON | KeyEvent.META_SHIFT_LEFT_ON;
+      _meta_state |= KeyEvent.META_CTRL_ON | KeyEvent.META_CTRL_LEFT_ON;
+      send_key_down_up(forward ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT);
+      _meta_state = saved;
+      return;
+    }
+    int start = et.selectionStart;
+    int end = et.selectionEnd;
+    int lo = Math.min(start, end);
+    int hi = Math.max(start, end);
+    // The text around the selection, [lo] is at [before.length()].
+    CharSequence before = conn.getTextBeforeCursor(EDIT_JUMP_CONTEXT, 0);
+    CharSequence selected = (lo != hi) ? conn.getSelectedText(0) : "";
+    CharSequence after = conn.getTextAfterCursor(EDIT_JUMP_CONTEXT, 0);
+    if (before == null) before = "";
+    if (selected == null) selected = "";
+    if (after == null) after = "";
+    String text = before.toString() + selected + after;
+    int offset = lo - before.length();
+    // Jump from the moving end while selecting, otherwise from the side of
+    // the jump.
+    int from = edit_select() ? end : (forward ? hi : lo);
+    int i = from - offset;
+    if (i < 0 || i > text.length())
+      return;
+    int to = forward ? from + EditJump.forward(text.substring(i))
+      : from - EditJump.backward(text.substring(0, i));
+    if (edit_select())
+    {
+      if (to == start) // Do not make the selection empty
+        return;
+      conn.setSelection(start, to);
+    }
+    else
+      conn.setSelection(to, to);
   }
 
   static ExtractedTextRequest _move_cursor_req = null;

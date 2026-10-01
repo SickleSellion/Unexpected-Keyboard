@@ -71,6 +71,12 @@ public final class LayoutModifier
           return add_glide_toggle_to_shift(k);
         }
       });
+    kw = kw.mapKeys(new KeyboardData.MapKey() {
+        public KeyboardData.Key apply(KeyboardData.Key k)
+        {
+          return add_edit_panel_to_shift(k);
+        }
+      });
     // Split the layout in landscape orientation
     if (globalConfig.split_layout)
       kw = LayoutLandscapeModifier.transform_to_landscape(kw);
@@ -197,6 +203,21 @@ public final class LayoutModifier
     if (center == null || !center.equals(KeyValue.SHIFT))
       return k;
     return k.withKeyValue(7, KeyValue.getKeyByName("toggle_glide"));
+  }
+
+  /** The edit panel is opened by swiping down on the shift key. */
+  static KeyboardData.Key add_edit_panel_to_shift(KeyboardData.Key k)
+  {
+    KeyValue center = k.keys[0];
+    if (center == null || !center.equals(KeyValue.SHIFT) || k.keys[8] != null)
+      return k;
+    return k.withKeyValue(8, KeyValue.getKeyByName("switch_edit_panel"));
+  }
+
+  /** The edit panel with the bottom row. */
+  public static KeyboardData modify_edit_panel(KeyboardData kw)
+  {
+    return kw.insert_row(bottom_row, kw.rows.size());
   }
 
   static KeyValue modify_key(KeyValue orig)
