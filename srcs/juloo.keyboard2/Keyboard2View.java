@@ -533,6 +533,33 @@ public class Keyboard2View extends View
         + android.os.SystemClock.uptimeMillis());
   }
 
+  /** The key under a touch once the touch areas moved to where the owner
+      presses, see [TouchCorrection]. [null] outside of the keys, then the
+      plain lookup applies (including its snapping). */
+  private KeyboardData.Key getCorrectedKeyAtPosition(TouchCorrection corr,
+      float tx, float ty)
+  {
+    KeyboardData.Row row = getRowAtPosition(ty - corr.dy * _tc.row_height);
+    if (row == null)
+      return null;
+    int n = row.keys.size();
+    float[] lefts = new float[n];
+    float[] widths = new float[n];
+    float[] shifts = new float[n];
+    float x = _marginLeft;
+    for (int i = 0; i < n; i++)
+    {
+      KeyboardData.Key k = row.keys.get(i);
+      x += k.shift * _keyWidth;
+      lefts[i] = x;
+      widths[i] = k.width * _keyWidth;
+      shifts[i] = corr.dx_of(k.keys[0]);
+      x += widths[i];
+    }
+    int i = TouchCorrection.pick(lefts, widths, shifts, tx);
+    return (i < 0) ? null : row.keys.get(i);
+  }
+
   private KeyboardData.Row getRowAtPosition(float ty)
   {
     List<KeyboardData.Row> rows = _keyboard.rows;
@@ -554,6 +581,14 @@ public class Keyboard2View extends View
 
   private KeyboardData.Key getKeyAtPosition(float tx, float ty)
   {
+    TouchCorrection corr = _config.foldable_unfolded ? null
+      : _config.touch_correction_folded;
+    if (corr != null)
+    {
+      KeyboardData.Key k = getCorrectedKeyAtPosition(corr, tx, ty);
+      if (k != null)
+        return k;
+    }
     KeyboardData.Row row = getRowAtPosition(ty);
     if (row == null)
       return null;

@@ -63,6 +63,8 @@ public final class Config
   public boolean edit_select = false;
   /** See [TouchLog]. */
   public boolean touch_log;
+  /** See [TouchCorrection], [null] when off. Only used folded. */
+  public TouchCorrection touch_correction_folded;
   public float slide_step_px;
   public boolean suggestions_enabled;
   /** Hide the candidates bar while it has no suggestion to show. */
@@ -207,6 +209,9 @@ public final class Config
     swipe_dist_px = swipe_dist_value / 25.f * swipe_scaling;
     backspace_swipe_scale = _prefs.getInt("backspace_swipe_dist", 100) / 100.f;
     touch_log = _prefs.getBoolean("touch_log", false);
+    touch_correction_folded = _prefs.getBoolean("touch_correction", true)
+      ? TouchCorrection.parse(_prefs.getString("touch_correction_folded", ""))
+      : null;
     float slider_sensitivity = Float.valueOf(_prefs.getString("slider_sensitivity", "30")) / 100.f;
     slide_step_px = slider_sensitivity * swipe_scaling;
     vibrate_custom = _prefs.getBoolean("vibrate_custom", false);

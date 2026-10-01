@@ -239,4 +239,6 @@
   <string name="pref_backspace_swipe_dist_summary">The corner swipes of the backspace key need a longer stroke, against deleting by accident (%s%% of the swipe distance)</string>
   <string name="pref_touch_log_title">Touch log (calibration)</string>
   <string name="pref_touch_log_summary">Records where you touch the keys and what they type, on this phone only, to tune the keyboard to your typing. Never in password fields. Turn it off after the session.</string>
+  <string name="pref_touch_correction_title">Touch correction (cover screen)</string>
+  <string name="pref_touch_correction_summary">Taps count where you actually press, measured on 1 Oct 2026 on the cover screen (folded). The keys look the same. The inner screen is not corrected.</string>
 </resources>
